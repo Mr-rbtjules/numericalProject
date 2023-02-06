@@ -20,6 +20,10 @@ int main(int argc, char *argv[])
 
   /* générér le problème */
 
+
+   while( (m-1)%6 != 0 && m > 7){
+        m++;
+   }
   if (prob(m, &n, &ia, &ja, &a, &b))
      return 1;
   printf("\nPROBLEM: ");
