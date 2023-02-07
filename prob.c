@@ -10,34 +10,9 @@
 
 
 
-void initBaseVal(int m){
-    while( (m-1)%6 != 0 && m > 7){
-        m++;
-    }
-    int nx = m-2;
-    //nb de points sur la largeur du trous
-    int p = 1 + m/6; //== nb de points entre y1 et y0
-    // "" sur la longueur
-    int q = 1 + m/2;
-    //plaque hors bords et trous
-    int dim = nx * nx - (p * q);
-    //nombre d'element non nul pour membrane de base
-    int nnz = 5 * nx * nx - 4 * nx ; 
-    //nb de points dans le trou:(compliqué a comprendre sans shema)
-    int trous = (5 * (p-2) * (q-2) + 4 * 2 * (p-2) + 4 * 2 * (q-2) 
-                + 3 * 4 * 1 + 1 * 2 * p + 1 * 2 * q) + 2 * p + 2 * q;
-    nnz -= trous;
-
-    double h = 3.0/(double)(m-1);
 
 
-    int y0 = (int)ceil(COORD_Y0/h) - 1;
-    int y1 = (int)ceil(COORD_Y1/h) - 1;
-    int x0 = (int)ceil(COORD_X0/h) - 1;
-    int x1 = (int)ceil(COORD_X1/h) - 1;
-}
-
-double computeBound(double x, double y){//mettra ix*h +-1
+double computeBound(double x, double y){
     return exp(sqrt(x*x + y*y));
 }
 
@@ -76,9 +51,7 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
 
 */
 {
-    int  nnz, ix, iy, ind, nx;
-    double xx, yy, h, invh2;
-
+    int  ix, iy, ind = 0;
     
     int nx = m-2;
     //nb de points sur la largeur du trous
@@ -86,7 +59,7 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
     // "" sur la longueur
     int q = 1 + m/2;
     //plaque hors bords et trous
-    int dim = nx * nx - (p * q);
+    *n = nx * nx - (p * q);
     //nombre d'element non nul pour membrane de base
     int nnz = 5 * nx * nx - 4 * nx ; 
     //nb de points dans le trou:(compliqué a comprendre sans shema)
@@ -95,7 +68,7 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
     nnz -= trous;
 
     double h = 3.0/(double)(m-1);
-
+    double invh2 = 1.0/(h*h);
 
     int y0 = (int)ceil(COORD_Y0/h) - 1;
     int y1 = (int)ceil(COORD_Y1/h) - 1;
@@ -138,9 +111,8 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
     }
     int nnz_save = nnz;
     
-    printf(" nnz %d  ecart %d nx %d\n", nnz, ecart, nx);
     //passage ligne suiv(plaque complete)
-
+    ind = 0;
     nnz = 0;
     for (iy = 0; iy < nx; iy++) {
         for (ix = 0; ix < nx; ix++) {
@@ -160,11 +132,13 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
                 skip_sud = 0;
             }
             //exclu interieur et bord du trou
+            
             if(iy > y1  || iy < y0  || ix < x0 || ix > x1){
                 //marquer le début de la ligne suivante dans le tableau 'ia'
                 (*ia)[ind] = nnz;
                 (*b)[ind] = 0.0;
-            
+                //printf("ind : %d\n",ind);
+               // printf("nnz : %d\n", nnz);
                 //replissage de la ligne : voisin sud //ui-1
                 // + verification si pas au dessus d'un bord
                 if (iy > 0 && ( iy-1 != y1 || ix < x0 || ix > x1) ){
@@ -189,13 +163,15 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
                 }
                 else{
                     (*b)[ind] += computeBound((ix -1)*h, iy*h);
-
                 }
 
                 // replissage de la ligne : élém. diagonal
                 (*a)[nnz] = 4.0*invh2;
                 (*ja)[nnz] = ind;
+                
                 nnz++;
+                
+                
 
                 // replissage de la ligne : voisin est
                 //si pas a gauche d'un bord
@@ -232,10 +208,193 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
         return 1;
     }
 
-    /* dernier élément du tableau 'ia' */
-    (*ia)[ind + 1] = nnz;
 
     /* retour de fonction habituel */
     return 0;
 }
 
+
+int ancienprob(int m, int *n, int **ia, int **ja, double **a, double **b)
+/*
+   But
+   ===
+   Génère la matrice n x n qui correspond à la disrétisation sur une grille 
+   cartesienne regulière m x m de l'operateur de Laplace à deux dimensions
+              
+            d    d        d    d
+         - == ( == u ) - == ( == u )        sur [0,3] x [0,3] \ [ 1, 5/2]×[ 3/2, 2]
+           dx   dx       dy   dy
+
+  avec la fonction u qui satisfait les conditions aux limites de Dirichlet
+         
+         u = 0  sur (0,y), (3,y), (x,0) et (x,3), pour tt x | 0<=x<=3 et tt y | 0<=y<=3
+  
+  La numérotation des inconnues est lexicographique, la direction x étant 
+  parcourue avant celle de y. La matrice est retournée dans le format CRS
+  qui est défini par le scalaire 'n' et les trois tableaux 'ia, 'ja' et 'a'.
+
+  Arguments
+  =========
+  m (input)   - nombre de points par direction dans la grille 
+  n  (output) - pointeur vers le nombre d'inconus dans le système
+  ia (output) - pointeur vers le tableau 'ia' de la matrice A
+  ja (output) - pointeur vers le tableau 'ja' de la matrice A
+  a  (output) - pointeur vers le tableau 'a' de la matrice A
+  nnz (output) - pointeur vers le nombre d'elements non nuls de A
+
+*/
+{
+
+    int ix, iy, nx, ind = 0;
+    double h;
+    double invh2;
+
+    nx = m - 2; /* noeuds de Dirichlet ne sont pas pris en compte */ 
+    
+    h = 3.0/(double)(m-1);
+    invh2 = (double)((m-1)*(m-1)) / 9.0; /* h^-2 pour L=3 */
+
+    int p = 1 + m/6;           //nb de points sur la largeur du trous
+    int q = 1 + m/2;           // "" sur la longueur
+
+    *n  = nx * nx - (p * q); 
+    int nnz = 5 * nx * nx - 4 * nx ; //nombre d'element non nul pour membrane sans trous
+    int nnz_save = nnz;
+    //avec trous:
+    int trous = (5*(p-2)*(q-2) + 4*2*(p-2) + 4*2*(q-2) +3*4*1 + 1*2*p + 1*2*q) +2*p +2*q;
+
+    nnz -= trous;
+
+    /* allocation des tableaux */
+
+    *ia  = malloc((*n + 1) * sizeof(int));
+    *ja  = malloc((nnz) * sizeof(int));
+    *a   = malloc((nnz) * sizeof(double));
+    *b = calloc(*n, sizeof(double));
+    /* allocation réussite? */
+
+    if (*ia == NULL || *ja == NULL || *a == NULL ) {
+        printf("\n ERREUR : pas assez de mémoire pour générer la matrice\n\n");
+        return 1;
+    }
+
+    /** partie principale : replissage de la matrice **/
+
+    int skip_sud = 0;
+    int skip_nord = 0;
+    int ecart = 0;
+
+    /*Calcul des constantes*/
+    int y0 = (int)ceil(COORD_Y0/h) - 1;    //ceil arrondis pour ne pas avoir par exemple (int)6.99 = 6
+    int y1 = (int)ceil(COORD_Y1/h) - 1;
+    int x0 = (int)ceil(COORD_X0/h) - 1;
+    int x1 = (int)ceil(COORD_X1/h) - 1;
+
+
+    /*calcul du nb de point sur le bord le plus long*/
+
+    for (ix = 0; ix < nx; ix++){
+        if ( ix >= x0 && ix<= x1 ){ //nombre de points sur un bord interne(du trou)
+                ecart += 1;
+        }
+    }
+
+    (nnz) = 0;
+    for (iy = 0; iy < nx; iy++){          //passage ligne suiv
+        for (ix = 0; ix < nx; ix++){      //passage colonne suiv
+
+            //initialisation du retard a ajouter à cause du bord (depend d'ou on se trouve sur la plaque)
+            if ( iy >= y0-1 && ix >= x1){
+                skip_nord = ecart;
+            }
+            if ( iy >= y1 && ix >= x1){
+                skip_nord = 0;
+            }
+            if ( iy >= y0 && ix >= x1){
+                skip_sud = ecart;
+            }
+            if ( iy > y1 && ix >= x1){
+                skip_sud = 0;
+            }
+            
+            
+            if(iy > y1  || iy < y0  || ix < x0 || ix > x1){   //exclu interieur et bord du trou
+            
+                /* marquer le début de la ligne suivante dans le tableau 'ia' */
+                (*ia)[ind] = (nnz);// val in = 0
+            
+                /* replissage de la ligne : voisin sud */ //ui-1
+                if (iy > 0 && ( iy != y1+1  || ix < x0 || ix > x1) ){        //si pas au dessus d'un bord
+                    (*a)[(nnz)] = -invh2;
+                    (*ja)[(nnz)] = ind - nx + skip_sud;
+                    /*
+                    -nx car on regarde delui d'en bas(shema)
+                    +skip_sud car comme on a passe des points(trous) nx ramene trop loin en arrière 
+                    */
+                    (nnz)++;
+                }
+                else{
+                    (*b)[ind] += computeBound(ix*h, (iy-1)*h); 
+                }
+
+                /* replissage de la ligne : voisin ouest */
+                if (ix > 0 && ( ix != x1 + 1 || iy > y1 || iy < y0 )){     //si pas a droite d'un bord
+                    (*a)[(nnz)] = -invh2;
+                    (*ja)[(nnz)] = ind - 1;
+                    (nnz)++;
+                }
+                else{
+                    (*b)[ind] += computeBound((ix -1)*h, iy*h);
+                }
+
+                /* replissage de la ligne : élém. diagonal */
+                (*a)[(nnz)] = 4.0*invh2;
+                (*ja)[(nnz)] = ind;
+                if (nnz == nnz_save-1){
+                    printf("last nnz\n");
+                }
+                (nnz)++;
+
+                /* replissage de la ligne : voisin est */
+                if (ix < nx - 1 && ( iy > y1 || iy < y0 || ix != x0 - 1 ) ){ //si pas a gauche d'un bord
+                    (*a)[(nnz)] = -invh2;
+                    (*ja)[(nnz)] = ind + 1;
+                    (nnz)++;
+                    
+                }
+                else{
+                    (*b)[ind] += computeBound((ix+1)*h, iy*h);
+                }
+
+                /* replissage de la ligne : voisin nord */
+                if (iy < nx - 1 && ( iy < y0 - 1 || iy > y1 || ix < x0 || ix > x1 ) ){  //si pas en dessous d'un bord
+                        (*a)[(nnz)] = -invh2;
+                        (*ja)[(nnz)] = ind + nx - skip_nord;
+                        (nnz)++;
+                }
+                else{
+                    (*b)[ind] += computeBound(ix*h, (iy+1)*h);
+                }
+                
+                
+                /* numéro de l'équation */
+                ind += 1;
+            }
+        }
+    }
+    /* dernier élément du tableau 'ia' */
+    if (nnz == nnz_save){
+        (*ia)[ind] = nnz;
+    }
+    else{
+        printf("Error nnz != nnz\n");
+        return 1;
+    }
+    
+    printf("a0 %lf\n", (*a)[nnz-1]);
+    printf("ja0 %d\n", ja[0][nnz-1]);
+    printf("ia0 %d\n", ia[0][*n]);
+    printf("b0 %lf\n", b[0][*n-1]);
+    /* retour de fonction habituel */
+    return 0;
+}
