@@ -1,11 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "proto.h"
 /* Declaratiopn des prototypes */
 
-double mytimer();
-double dnrm2_(int*, double*, int*); /* norme euclidienne dans BLAS */
-prob(int m, int *n, int **ia, int **ja, double **a, double **b);
+
 /* Fonction main */
 
 int main(int argc, char *argv[])
@@ -13,17 +12,18 @@ int main(int argc, char *argv[])
 
   /* déclarer les variables */
 
-  int m = 100;
+  int m = 15; //  >= 13 et impaire pour la restriction et conserver distance par rapport au bords
   int n, *ia, *ja; 
   double *a, *b, *x;
   double t1, t2;
 
   /* générér le problème */
 
-
-   while( (m-1)%6 != 0 && m > 7){
+   //correction m adapté a notre pblm
+  while( m < 13){
         m++;
    }
+
   if (prob(m, &n, &ia, &ja, &a, &b))
      return 1;
   printf("\nPROBLEM: ");
