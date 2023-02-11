@@ -80,8 +80,6 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
      -1 car on considere que les points pas sur le bords (nx) qui commence par l'indice 0 donc jusque nx-1
     */
     
-   
-    
     int nx = m-2;
     //nb de points sur la largeur du trous
 
@@ -97,7 +95,6 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
                 + 3 * 4 * 1 + 1 * 2 * p + 1 * 2 * q) + 2 * p + 2 * q;
     nnz -= trous;
     
-    printf("%d %d\n", x1, y1);
     
     /* allocation des tableaux */
 
@@ -115,17 +112,6 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
 
     /* partie principale : replissage de la matrice */
 
-
-    int skip_sud = 0;
-    int skip_nord = 0;
-    int ecart = 0;
-
-    //Calcul des constantes (indice des points du bord du trou)
-    //ceil arrondis pour ne pas avoir par exemple (int)6.99 = 6 
-   
-
-    
-
     int nnz_save = nnz;
     
     //passage ligne suiv(plaque complete)
@@ -133,23 +119,7 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
     nnz = 0;
     for (iy = 0; iy < nx; iy++) { //iy ix indice sur grille hors bords  mais position (ix+1)*h
         for (ix = 0; ix < nx; ix++) {
-            /* numéro de l'équation */
-            //initialisation du retard a ajouter à cause du bord 
-            //(depend d'ou on se trouve sur la plaque)
-            if ( iy >= y0-1 && ix >= x1){//ecart reste jusque cond suivante appliquée, quand ? qd sorti des alentours du trous (condition suiv s'applique en compensation)
-                skip_nord = q;
-            }
-            if ( iy >= y1 && ix >= x1){
-                skip_nord = 0;
-            }
-            if ( iy >= y0 && ix >= x1){
-                skip_sud = q;
-            }
-            if ( iy > y1 && ix >= x1){
-                skip_sud = 0;
-            }
             //exclu interieur et bord du trou
-            
             if(! in_hole(ix,iy,y0,y1,x0,x1)){
                 //marquer le début de la ligne suivante dans le tableau 'ia'
                 (*ia)[ind] = nnz;
@@ -161,7 +131,7 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
                 
                 if (check_sud(ix,iy,y0,y1,x0,x1,nx)){
                     (*a)[nnz] = -invh2;
-                    (*ja)[nnz] = ind - nx + skip_sud;
+                    (*ja)[nnz] = indice(ix,iy-1,y0,y1,x0,x1, nx);//ind - nx + skip_sud;
                     
                     //-nx car on regarde delui d'en bas(shema)
                     //+skip_sud car comme on a passe des points(trous)
@@ -207,7 +177,7 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
                 
                 if ( check_nord(ix,iy,y0,y1,x0,x1,nx) ){
                         (*a)[nnz] = -invh2;
-                        (*ja)[nnz] = ind + nx - skip_nord;
+                        (*ja)[nnz] = indice(ix,iy+1,y0,y1,x0,x1, nx);
                         nnz++;
                 }
                 else{
@@ -285,8 +255,8 @@ int check_est(int ix, int iy, int y0, int y1, int x0, int x1, int nx){
 }
 int check_nw(int ixc, int iyc, int y0, int y1, int x0, int x1, int nx){
     
-	int ix = (2*ix) + 1 - 1;//ind point nw sur la grille prolong 
-    int iy = (2*iy) + 1 + 1;
+	int ix = (2*ixc) + 1 - 1;//ind point nw sur la grille prolong 
+    int iy = (2*iyc) + 1 + 1;
     if (ix >= 0 && iy < nx && ! in_hole(ix, iy, y0,y1,x0,x1)){
 		return 1;
 	}
@@ -297,8 +267,8 @@ int check_nw(int ixc, int iyc, int y0, int y1, int x0, int x1, int nx){
 
 int check_ne(int ixc, int iyc, int y0, int y1, int x0, int x1, int nx){
     
-	int ix = (2*ix) + 1 + 1;//ind point nw sur la grille prolong 
-    int iy = (2*iy) + 1 + 1;
+	int ix = (2*ixc) + 1 + 1;//ind point nw sur la grille prolong 
+    int iy = (2*iyc) + 1 + 1;
     if (ix < nx && iy < nx && ! in_hole(ix, iy, y0,y1,x0,x1)){
 		return 1;
 	}
@@ -307,11 +277,11 @@ int check_ne(int ixc, int iyc, int y0, int y1, int x0, int x1, int nx){
 	}
 }
 
-int check_sw(int ixc, int iyc, int y0, int y1, int x0, int x1, int nx){
+int check_sw(int ix, int iy, int y0, int y1, int x0, int x1, int nx){
     
-	int ix = (2*ix) + 1 - 1;//ind point nw sur la grille prolong 
-    int iy = (2*iy) + 1 - 1;
-    if (ix >= 0 && iy >=0 && ! in_hole(ix, iy, y0,y1,x0,x1)){
+	int ixsw =  ix - 1;//ind point nw sur la grille prolong 
+    int iysw = iy - 1;
+    if (ix >= 0 && iy >=0 && ! in_hole(ixsw, iysw, y0,y1,x0,x1)){
 		return 1;
 	}
 	else{
@@ -321,8 +291,8 @@ int check_sw(int ixc, int iyc, int y0, int y1, int x0, int x1, int nx){
 
 int check_se(int ixc, int iyc, int y0, int y1, int x0, int x1, int nx){
     
-	int ix = (2*ix) + 1 + 1;//ind point nw sur la grille prolong 
-    int iy = (2*iy) + 1 - 1;
+	int ix = (2*ixc) + 1 + 1;//ind point nw sur la grille prolong 
+    int iy = (2*iyc) + 1 - 1;
     if (ix < nx && iy >= 0 && ! in_hole(ix, iy, y0,y1,x0,x1)){
 		return 1;
 	}
@@ -331,12 +301,11 @@ int check_se(int ixc, int iyc, int y0, int y1, int x0, int x1, int nx){
 	}
 }
 
-int indice(int ix,int iy, int m, int y0, int y1, int x1, int x0){ //ix iy -> indice u
+int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx){ //ix iy -> indice u
 	
 	int ind;
 	int p = y1 - y0 + 1;
 	int q = x1- x0 + 1;
-	int nx = m-2;
 	if (iy < y0 || (iy == y0 && ix < x0) ){//pas de retard
 		ind = ix + (iy * nx);
 	}

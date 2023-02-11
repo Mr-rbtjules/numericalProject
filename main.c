@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
 
   /* déclarer les variables */
 
-  int m = 15; //  >= 13 et impaire pour la restriction et conserver distance par rapport au bords
+  int m = 102; //  >= 13 et impaire pour la restriction et conserver distance par rapport au bords
   int n, *ia, *ja; 
   double *a, *b, *x;
   double t1, t2;

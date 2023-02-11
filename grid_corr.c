@@ -30,20 +30,17 @@ int restrictR(double **r, double **rc, int m, int *n){
     *n = nx * nx - (p * q);
     
 	//valeurs de rc
-	int sizeRc;
-	int mc = (m+1)/2;
-	int nxc = mc-2;
-	int x1c = ((int)(COORD_X1 * (mc-1)) /3)  -1; 
-    int x0c = (((int)(COORD_X0 * (mc-1)) + ((3 - ((int)(COORD_X0*(mc-1))%3))%3))/3)  -1;
-    int y1c = ((int)(COORD_Y1 * (mc-1)) /3)  -1;
-    int y0c = (((int)(COORD_Y0 * (mc-1)) + ((3 - ((int)(COORD_Y0*(mc-1))%3))%3))/3)  -1;
-    
-
-    int pc = y1c - y0c + 1;
+	int x0c = (x0 / 2); // va arrondir au point grille coarse a droite 
+	int x1c = ((x1+1)/2) - 1; // permet si x1 par on retire 1 et pair on ajoute 1
+	int y0c = (y0/2); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int y1c = ((y1+1)/2) - 1;
+	int pc = y1c - y0c + 1;
     int qc = x1c - x0c + 1;
+
+	int nxc = nx/2; // nb de points coars sur un ligne pas bord
     int nc = nxc * nxc - (pc * qc);
 
-	*r = malloc(nc * sizeof(double));
+	*rc = malloc(nc * sizeof(double));
 
 	int skip_sud = 0;
     int skip_nord = 0;
@@ -56,22 +53,8 @@ int restrictR(double **r, double **rc, int m, int *n){
         //passage colonne suiv
         for (ix = 0; ix < nx; ix++){      
 
-            //initialisation du retard a ajouter à cause du bord 
-            //(depend d'ou on se trouve sur la plaque)
-            if ( iy >= y0-1 && ix >= x1){
-                skip_nord = q;
-            }
-            if ( iy >= y1 && ix >= x1){
-                skip_nord = 0;
-            }
-            if ( iy >= y0 && ix >= x1){
-                skip_sud = q;
-            }
-            if ( iy > y1 && ix >= x1){
-                skip_sud = 0;
-            }
             //exclu interieur et bord du trou
-            if( ! in_hole((ix+1)*h, (iy+1)*h)){
+            if( ! in_hole(ix,iy,y0,y1,x0,x1)){
                 
                 //garde que ligne ind impair  & col impair 
                 if (iy % 2 == 1 && ix % 2 == 1){  
@@ -79,12 +62,9 @@ int restrictR(double **r, double **rc, int m, int *n){
                     //marquer le début de la ligne suivante dans le tableau 'ia'            
                     //replissage de la ligne : voisin sud //ui-1
                     // + verification si pas au dessus d'un bord
-                    if (check_sud(ix,iy,h,h) ){
+                    if (check_sud(ix,iy,y0,y1,x0,x1,nx) ){
                         
-                        (*rc)[nrc] += 0.25 * (*r)[nr - nx + skip_sud] * SCALE_FACT;
-                        //-nx car on regarde delui d'en bas(shema)
-                        //+skip_sud car comme on a passe des points(trous)
-                        // nx ramene trop loin en arrière
+                        (*rc)[nrc] += 0.25 * (*r)[indice(ix,iy-1,y0,y1,x0,x1, nx)] * SCALE_FACT;
                     }
                     else{
                         (*rc)[nrc] += 0.25 * computeBound((ix+1)*h,(iy+1 -1)*h) * SCALE_FACT;//si fct qui calcule chaque fois :juste coord sinon
@@ -92,7 +72,7 @@ int restrictR(double **r, double **rc, int m, int *n){
 
                     //replissage de la ligne : voisin ouest 
                     //si pas a droite d'un bord
-                    if (check_west(ix,iy, h,h)){
+                    if (check_west(ix,iy,y0,y1,x0,x1,nx)){
                         (*rc)[nrc] += 0.25 * (*r)[nr - 1] * SCALE_FACT;
                     }
                     else{
@@ -106,7 +86,7 @@ int restrictR(double **r, double **rc, int m, int *n){
 
                     // replissage de la ligne : voisin est
                     //si pas a gauche d'un bord
-                    if (check_est(ix,iy,h,h) ){
+                    if (check_est(ix,iy,y0,y1,x0,x1,nx) ){
                         (*rc)[nrc] += 0.25 * (*r)[nr + 1] * SCALE_FACT;
                     }
                     else{
@@ -115,9 +95,9 @@ int restrictR(double **r, double **rc, int m, int *n){
 
                     // replissage de la ligne : voisin nord
                     //si pas en dessous d'un bord
-                    if (check_nord(ix,iy,h,h) ){
+                    if ( check_nord(ix,iy,y0,y1,x0,x1,nx) ){
 
-                        (*rc)[nrc] += 0.25 * (*r)[nr + nx - skip_nord] * SCALE_FACT;
+                        (*rc)[nrc] += 0.25 * (*r)[indice(ix,iy+1,y0,y1,x0,x1, nx)] * SCALE_FACT;
                     }
                     else{
                         (*rc)[nrc] += 0.25 * computeBound((ix+1)*h, (iy+1+1)*h) * SCALE_FACT;
@@ -145,7 +125,7 @@ int restrictR(double **r, double **rc, int m, int *n){
 }
 
 
-int prolongR(double **u, double **uc, int m){
+int prolongR(double **u, double **uc, int m){ //ici m de u pas de uc !
 
 	int ixc, iyc;
 
@@ -161,10 +141,10 @@ int prolongR(double **u, double **uc, int m){
 
     int p = y1 - y0 + 1;
     int q = x1 - x0 + 1;
-    *n = nx * nx - (p * q);
+    int n = nx * nx - (p * q);
     
-	//valeurs de uc
-	int sizeRc;
+	//!!!! faux !
+	/*int sizeRc;
 	int mc = (m+1)/2;
 	double hc = 3.0/(mc-1);
 	int nxc = mc-2;
@@ -172,190 +152,66 @@ int prolongR(double **u, double **uc, int m){
     int x0c = (((int)(COORD_X0 * (mc-1)) + ((3 - ((int)(COORD_X0*(mc-1))%3))%3))/3)  -1;
     int y1c = ((int)(COORD_Y1 * (mc-1)) /3)  -1;
     int y0c = (((int)(COORD_Y0 * (mc-1)) + ((3 - ((int)(COORD_Y0*(mc-1))%3))%3))/3)  -1;
-    
+    */
+	//peut pas calculer de nouveau m ou nx pour position du trou
 
-    int pc = y1c - y0c + 1;
+	int x0c = (x0 / 2); // va arrondir au point grille coarse a droite 
+	int x1c = ((x1+1)/2) - 1; // permet si x1 par on retire 1 et pair on ajoute 1
+	int y0c = (y0/2); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int y1c = ((y1+1)/2) - 1;
+	int pc = y1c - y0c + 1;
     int qc = x1c - x0c + 1;
+
+	int nxc = nx/2; // nb de points coars sur un ligne pas bord
     int nc = nxc * nxc - (pc * qc);
 
-	*r = malloc(nc * sizeof(double));
-
-	int skip_sud = 0;
-    int skip_nord = 0;
-
-	int nu = 0;
-	int nuc = 0;
-
-	for(ixc = 0; ixc < nxc; ixc++){
-		for (iyc = 0; iyc < nxc; iyc++){
-			if ( iyc >= y0c-1 && ixc >= x1c){//ecart reste jusque cond suivante appliquée, quand ? qd sorti des alentours du trous (condition suiv s'applique en compensation)
-                skip_nord = qc;
-            }
-            if ( iyc >= y1c && ixc >= x1c){
-                skip_nord = 0;
-            }
-            if ( iyc >= y0c && ixc >= x1c){
-                skip_sud = qc;
-            }
-            if ( iyc > y1c && ixc >= x1c){
-                skip_sud = 0;
-            }
-			if(! in_hole((ixc+1)*hc, (iyc+1)*hc)){
-
-				if (check_sw(ixc,iyc, hc, h)){//(u)[transfert de coord uc a u pout le point origin(!! ) puis soustrait ce qui faut pour arriver au point target]
-					(*u)[] = 0.25 * (*uc)[nuc];
-				}
-				else{
-
-				}
-				nuc += 1;
-			}
-		}
-	}
-
-	return 0;
-}
-
-
-	
-
-
-/*
-int prolongR(double **u, double **uc, int m){
-
-	int ix, iy;
-
-	//valeurs de u
-	double h = 3.0/(double)(m-1);
-    double invh2 = 1.0/(h*h);
-    int x1 = ((int)(COORD_X1 * (m-1)) /3)  -1; 
-    int x0 = ((int)(COORD_X0 * (m-1)) /3)  -1;
-    int y1 = ((int)(COORD_Y1 * (m-1)) /3)  -1;
-    int y0 = ((int)(COORD_Y0 * (m-1)) /3)  -1;
-  
-    int nx = m-2;
-
-    int p = y1 - y0 + 1;
-    int q = x1 - x0 + 1;
-    int n = nx * nx - (p * q);
-    
 	*u = malloc(n * sizeof(double));
 
-	//valeurs de uc -> les plus determinantes mais ici pas suffisante
-	int sizeRc;
-	int mc = (m+1)/2;
-	int nxc = mc-2;
-	int x1c = ((int)(COORD_X1 * (mc-1)) /3)  -1; 
-    int x0c = ((int)(COORD_X0 * (mc-1)) /3)  -1;
-    int y1c = ((int)(COORD_Y1 * (mc-1)) /3)  -1;
-    int y0c = ((int)(COORD_Y0 * (mc-1)) /3)  -1;
-  
-
-    int pc = y1c - y0c + 1;
-    int qc = x1c - x0c + 1;
-    int nc = nxc * nxc - (pc * qc);
-
 	
-
-	int skip_sud = 0;
-    int skip_nord = 0;
-
-	int nr = n;
-	int nrc = nc;
-
-	int skip_sud = 0;
-    int skip_nord = 0;
-    int skip_coin_so = 0;
-    int skip_coin_se = 0;
-    int skip_coin_no = 0;
-    int skip_coin_ne = 0;
-
-
-	int n = 0;
-    int nc = 0;
-    //passage ligne suiv(plaque complete)
-    //pour chaque ligne:
-    for (iy = 0; iy < nx; iy++){
+	int nu = 0;
+	int nuc = 0;
+	
+	for (iy = 0; iy < nx; iy++){
         //passage colonne suiv
         for (ix = 0; ix < nx; ix++){      
 
-            //initialisation du retard a ajouter à cause du bord 
-            //(depend d'ou on se trouve sur la plaque)
-            
-            if ( iy >= y0-1 && ix >= x1){
-                skip_nord = q;
-            }
-            if ( iy >= y1 && ix >= x1){ //pblm : pense que y a un skip car point ds zone 
-                skip_nord = 0;
-            }
-            if ( iy >= y0 && ix >= x1){
-                skip_sud = q;
-            }
-            if ( iy > y1 && ix >= x1){
-                skip_sud = 0;
-            }
-            
             //exclu interieur et bord du trou
-            if(iy > y1  || iy < y0  || ix < x0 || ix > x1){
+            if(! in_hole(ix,iy,y0,y1,x0,x1)){
                 
 				//impair impair -> 1/4 somme des 4 autour
                 if (iy % 2 == 0 && ix % 2 == 0){
                     //check si bord est bien la ou pense etre pour uc (pas faire une recherche alors que bord)
                     //somme coin gauche bas 
                     //check si pas ds le trou
-                    if (iy -1 >= 0  && (iy-1 > y1  || ix -1 < x0 || x1 < ix -1) //condition bas
-                            && ix -1 >= 0 && (ix - 1 > x1 || iy -1 > y1 || iy -1 < y0 )){//condition gauche
-                        //doit chercher dans la liste donc check si ecart
-                        if ( ix -1 < x0 && iy-1 >= y0 && iy -1 <= y1){
-                            skip_coin_so = q;
-                        }
-                        else{
-                            skip_coin_so = 0;
-                        }
-                        (*u)[n] += 0.25 * (*uc)[nc + ix/2 - (nx/2 + 1) + skip_coin_so]; 
+                    if (check_sw(ix,iy,y0,y1,x0,x1,nx)){
+                        
+						int ind = indice((ix/2)-1,(iy/2-1), y0c,y1c,x0c,x1c, nxc);//indicie point sw coarse
+                        (*u)[n] += 0.25 * (*uc)[ind]; 
                     }
                     else{
-                        (*u)[n] += 0.25 * computeBound((ix-1+1)*h,(iy-1+1)*h);
+                        (*u)[n] += 0.25 * computeBound((ix+1-1)*h,(iy+1-1)*h);
                     }
                     //coin droit bas
-                    if (iy - 1 >= 0  && (iy-1 > y1  || ix +1 < x0 || ix +1 > x1) //cond bas
-                            && ix + 1 < nx && ( ix + 1 < x0 || iy-1 > y1 || iy-1  < y0)){ //cond droit
-                        if ( ix +1 < x0 && iy-1 >= y0 && iy -1 <= y1){
-                            skip_coin_se = q;
-                        }
-                        else{
-                            skip_coin_se = 0;
-                        }
-                        (*u)[n] += 0.25 * (*uc)[nc + 1 + ix/2 - (nx/2 + 1) + skip_coin_se];
+                    if (check_se(ix,iy,y0,y1,x0,x1,nx)){ //cond droit
+                        int ind = indice((ix/2),(iy/2-1), y0c,y1c,x0c,x1c, nxc);
+                        (*u)[n] += 0.25 * (*uc)[ind];
                     }
                     else{
-                        (*u)[n] += 0.25 * computeBound((ix+1+1)*h,(iy-1+1)*h);
+                        (*u)[n] += 0.25 * computeBound((ix+1+1)*h,(iy+1-1)*h);
                     }
                     //coin haut gauche
-                    if ( iy+1 < nx && ( iy+1 < y0 || ix -1 < x0 || ix -1 > x1) //cond haut gauche
-                            && ix -1 >= 0 && (ix - 1 > x1 || iy +1 > y1 || iy +1 < y0 )){ //cond gauche haut
-                        if (ix -1 > x1 && iy + 1 >= y0 && iy +1 <= y1){ //qd point no entre ds zone
-                            skip_coin_no = q;
-                        }
-                        else{//qd point centrale en dehors zone
-                            skip_coin_no = 0;
-                        }
-                        (*u)[n] += 0.25 * (*uc)[nc + ix/2 - skip_coin_no];
+                    if (check_nw(ix,iy,y0,y1,x0,x1,nx) ){ //cond gauche haut
+                        int ind = indice((ix/2 - 1),(iy/2), y0c,y1c,x0c,x1c, nxc);
+                        (*u)[n] += 0.25 * (*uc)[ind];
                     }
                     else{
-                        (*u)[n] += 0.25 * computeBound((ix-1+1)*h,(iy + 1+1)*h);
+                        (*u)[n] += 0.25 * computeBound((ix+1-1)*h,(iy + 1+1)*h);
                     }
                     //coin droit haut
                     
-                    if ( iy+1 < nx && ( iy+1 < y0 || ix + 1 < x0 || ix + 1 > x1) //cond haut
-                            && ix + 1 < nx && ( ix + 1 < x0 || iy + 1 > y1 || iy + 1  < y0)){ //cond droit
-                        if (ix + 1 > x1 && iy + 1 >= y0 && iy +1 <= y1){
-                            skip_coin_ne = q;
-                        }
-                        else{
-                            skip_coin_ne = 0;
-                        }
-                        (*u)[n] += 0.25 * (*uc)[nc + 1 + ix/2 - skip_coin_ne];
+                    if (check_ne(ix,iy,y0,y1,x0,x1,nx) ){ //cond droit
+                        int ind = indice((ix/2),(iy/2), y0c,y1c,x0c,x1c, nxc);
+                        (*u)[n] += 0.25 * (*uc)[ind];
                     }
                     else{
                         (*u)[n] += 0.25 * computeBound((ix+1+1)*h,(iy+1+1)*h);
@@ -366,52 +222,38 @@ int prolongR(double **u, double **uc, int m){
 				else if (iy % 2 == 0 && ix % 2 == 1){
                     
                     //somme bas
-                    if (iy-1 >= 0 && ( iy-1 > y1  || ix < x0 || ix > x1) ){
-                        if ( ix < x0 && iy-1 >= y0 && iy -1 <= y1){ //que dans zone gauche, quand point sud niveau y0 et jusqu' a ce que le point sud depasse y1
-                            skip_s = q;
-                        }
-                        else {
-                            skip_s = 0; //cas ou on est dans la zone de droite car passe sur le trou dans 1 sens puis dans l'autre donc s'annule
-
-                        }
-                        //+ix/2 car tt les 2 points il faut realigner le point de uc qui de base est ligne au dessus tt a gauche
-                        (*u)[n] += 0.5 * (*uc)[nc + ix/2 - (nx/2 + 1) + skip_sud];//-nx/2+1 pour aller ligne en dessous
+                    if (check_sud(ix,iy,y0,y1,x0,x1,nx) ){
+                       
+                        int ind = indice((ix/2),(iy/2)-1, y0c,y1c,x0c,x1c, nxc);
+                        (*u)[n] += 0.5 * (*uc)[ind];
                     }
                     else{
-                        (*u)[n] += 0.5 * computeBound((ix+1)*h,(iy-1+1)*h);
+                        (*u)[n] += 0.5 * computeBound((ix+1)*h,(iy+1-1)*h);
                     }
                     //somme haut
-                    if(iy+1 < nx && ( iy+1 < y0 || ix < x0 || ix > x1 )){
-                        if ( ix > x1 && iy + 1 >= y0 && iy +1 <= y1){//que dans zone de droite , a partir de point nord sur y0, et que 
-                            skip_n = q;
-                        }
-                        else{
-                            skip_n = 0;
-                        }
-                        (*u)[n] += 0.5 * (*uc)[nc + ix/2 - skip_n]; //pas de nx/2+1 car point uc[nc] deja ligne du haut
+                    if(check_nord(ix,iy,y0,y1,x0,x1,nx)){
+                        int ind = indice((ix/2),(iy/2), y0c,y1c,x0c,x1c, nxc);
+                        (*u)[n] += 0.5 * (*uc)[ind]; //pas de nx/2+1 car point uc[nc] deja ligne du haut
                     }
                     else{
                         (*u)[n] += 0.5 * computeBound((ix+1)*h,(iy+1+1)*h);
                     }
                 }
-
-                
                 //pair impair 1/2 somme gauche droite
                 else if (iy % 2 == 1 && ix % 2 == 0){
 
                     //somme gauche
                     //si pas a droite d'un bord
-                    if (ix -1 >= 0 && ( ix - 1 > x1 || iy > y1 || iy < y0 )){
-                        
+                    if (check_west(ix,iy,y0,y1,x0,x1,nx)){
                         (*u)[n] += 0.5 * (*uc)[nc - 1];
                     }
                     else{
-                        (*u)[n] += 0.5 * computeBound((ix-1+1)*h,(iy+1)*h);
+                        (*u)[n] += 0.5 * computeBound((ix+1-1)*h,(iy+1)*h);
                     }
 
                     //somme droit
                     //si pas a gauche d'un bord
-                    if (ix + 1 < nx && ( ix + 1 < x0 || iy > y1 || iy < y0) ){
+                    if (check_est(ix,iy,y0,y1,x0,x1,nx) ){
                         (*u)[n] += 0.5 * (*uc)[nc]; //nc car deja +1 car type point precedent + 1
                     }
                     else{
@@ -431,7 +273,126 @@ int prolongR(double **u, double **uc, int m){
         }
     }
 
-
 	return 0;
 }
-*/
+
+
+int probCoarse(int m, int level, double h, int **iac, int **jac, double **ac){
+
+	//level 1 : 2grid method
+	int ixc, iyc;
+	int multi = level -1;
+	//valeurs de u
+	double h = 3.0/(double)(m-1);
+    double invh2 = 1.0/(h*h);
+    int x1 = ((int)(COORD_X1 * (m-1)) /3)  -1; 
+    int x0 = (((int)(COORD_X0 * (m-1)) + ((3 - ((int)(COORD_X0*(m-1))%3))%3))/3)  -1;
+    int y1 = ((int)(COORD_Y1 * (m-1)) /3)  -1;
+    int y0 = (((int)(COORD_Y0 * (m-1)) + ((3 - ((int)(COORD_Y0*(m-1))%3))%3))/3)  -1;
+    
+    int nx = m-2;
+
+    int p = y1 - y0 + 1;
+    int q = x1 - x0 + 1;
+    int n = nx * nx - (p * q);
+    
+	//!!!! faux !
+	/*int sizeRc;
+	int mc = (m+1)/2;
+	double hc = 3.0/(mc-1);
+	int nxc = mc-2;
+	int x1c = ((int)(COORD_X1 * (mc-1)) /3)  -1; 
+    int x0c = (((int)(COORD_X0 * (mc-1)) + ((3 - ((int)(COORD_X0*(mc-1))%3))%3))/3)  -1;
+    int y1c = ((int)(COORD_Y1 * (mc-1)) /3)  -1;
+    int y0c = (((int)(COORD_Y0 * (mc-1)) + ((3 - ((int)(COORD_Y0*(mc-1))%3))%3))/3)  -1;
+    */
+	//peut pas calculer de nouveau m ou nx pour position du trou
+
+	double hc = 2*h;
+	double invh2c = 1.0/(hc*hc); 
+
+	int x0c = (x0 / 2*multi); // va arrondir au point grille coarse a droite 
+	int x1c = ((x1+1)/2*multi) - 1; // permet si x1 pair on retire 1 
+	int y0c = (y0/2*multi); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int y1c = ((y1+1)/2*multi) - 1;
+	int pc = y1c - y0c + 1;
+    int qc = x1c - x0c + 1;
+
+	int nxc = nx/2; // nb de points coars sur un ligne pas bord
+    int nc = nxc * nxc - (pc * qc);
+	int nnzc = 5 * nxc * nxc - 4 * nxc ; 
+    //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
+    int trousc = (5 * (pc-2) * (qc-2) + 4 * 2 * (pc-2) + 4 * 2 * (qc-2) 
+                + 3 * 4 * 1 + 1 * 2 * pc + 1 * 2 * qc) + 2 * pc + 2 * qc;
+    nnzc -= trousc;
+
+	*iac  = malloc((nc + 1) * sizeof(int));
+    *jac  = malloc(nnzc * sizeof(int));
+    *ac   = malloc(nnzc * sizeof(double));
+
+	int nnz_save = nnz;
+    
+    //passage ligne suiv(plaque complete)
+    ind = 0;
+    nnzc = 0;
+    for (iyc = 0; iyc < nxc; iyc++) { //iy ix indice sur grille hors bords  mais position (ix+1)*h
+        for (ixc = 0; ixc < nxc; ixc++) {
+            //exclu interieur et bord du trou
+            if(! in_hole(ixc,iyc,y0c,y1c,x0c,x1c)){
+                //marquer le début de la ligne suivante dans le tableau 'ia'
+                (*iac)[ind] = nnzc;
+               
+                if (check_sud(ixc,iyc,y0c,y1c,x0c,x1c,nxc)){
+                    (*ac)[nnzc] = -invh2c;
+                    (*jac)[nnzc] = indice(ixc,iyc-1,y0c,y1c,x0c,x1c, nxc);//ind - nx + skip_sud;
+                    
+                    //-nx car on regarde delui d'en bas(shema)
+                    //+skip_sud car comme on a passe des points(trous)
+                    // nx ramene trop loin en arrière
+                    nnzc++;
+                }
+
+                //replissage de la ligne : voisin ouest 
+                //si pas a droite d'un bord
+               
+                if (check_west(ixc,iyc,y0c,y1c,x0c,x1c,nxc)){
+                    (*ac)[nnzc] = -invh2c;
+                    (*jac)[nnzc] = ind - 1;
+                    nnzc++;
+                }
+                
+
+                // replissage de la ligne : élém. diagonal
+                (*ac)[nnzc] = 4.0*invh2c;
+                (*jac)[nnzc] = ind;
+                
+                nnzc++;
+                
+                // replissage de la ligne : voisin est
+                //si pas a gauche d'un bord
+                
+                if ( check_est(ixc,iyc,y0c,y1c,x0c,x1c,nxc) ){
+                    (*ac)[nnzc] = -invh2c;
+                    (*jac)[nnzc] = ind + 1;
+                    nnzc++;
+                }
+
+                // replissage de la ligne : voisin nord
+                //si pas en dessous d'un bord
+                
+                if ( check_nord(ixc,iyc,y0c,y1c,x0c,x1c,nxc) ){
+                        (*ac)[nnzc] = -invh2c;
+                        (*jac)[nnzc] = indice(ixc,iyc+1,y0c,y1c,x0c,x1c, nxc);
+                        nnzc++;
+                }
+                // numéro de l'équation
+                ind += 1;
+                
+            }
+        }
+    }
+
+	return 0;
+}	
+
+
