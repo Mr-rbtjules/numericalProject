@@ -88,8 +88,9 @@ int backwardGS(){
 	return 0;
 }
 
-int stationaryIter(int iter, int n, int *ia, int *ja,
-					 double *a,double *b, double *u, int forward){
+int stationaryIter( int iter, int n, int *ia, int *ja,
+					double *a,double *b, double *u, 
+					double *r, double *d, int forward){
 	
 	if (iter != 0){
 		iter -= 1;
@@ -102,15 +103,18 @@ int stationaryIter(int iter, int n, int *ia, int *ja,
 		//initialisation u0
 		u = calloc(n * sizeof(double));
 		r = malloc(n *sizeof(double));
+		d = malloc(n *sizeof(double));
 		//qqchose
 	}
 	//rm
 	computeRes(n, ia, ja, a, u, b, r);
+	
+	// dm == solve B*d = r (B construit a partir de A direct 
+	// ds la methode)
 	if (forward){
-		gaussResL()
-	}
-	//dm == solve B*d = r
 
+		gaussResL(n , ia, ja, a, d, r);
+	}
 	//rm+1
 
 	//um+1

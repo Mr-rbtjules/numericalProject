@@ -12,9 +12,13 @@ int main(int argc, char *argv[])
 
   /* déclarer les variables */
 
-  int m = 100; //  >= 13 et impaire pour la restriction et conserver distance par rapport au bords
-  int n, *ia, *ja; 
-  double *a, *b, *x;
+  int m = 15; //  >= 13 et impaire pour la restriction et conserver distance par rapport au bords
+  int n;
+  int *ia = NULL;
+  int *ja = NULL; 
+  double *a = NULL;
+  double *b = NULL;
+  double *x = NULL;
   double t1, t2;
 
   /* générér le problème */

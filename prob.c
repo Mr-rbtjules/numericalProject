@@ -197,6 +197,7 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
         printf("Error nnz = %d!= nnz = %d\n", nnz, nnz_save);
         return 1;
     }
+    
 
 
     /* retour de fonction habituel */
