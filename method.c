@@ -147,3 +147,54 @@ int soustVect(int n , double *v1, double *v2, double *vout){
 	}
 	return 0;
 }
+
+int gaussResD(int n , int *il, int *jl, double *l, double *u, double *b){) {
+
+	int i = 0;
+	if (u == NULL){
+		u = malloc(sizeof(double) * n);
+	}
+	while (i < n){
+
+		int start_ind_jl = il[i];
+		int end_ind_jl = il[i+1] - 1;
+		u[i] = b[i]; //copie b sur u
+		while (start_ind_jl < end_ind_jl){
+
+			u[i] -= (l[start_ind_jl] 
+							* u[jl[start_ind_jl]]);
+			start_ind_jl += 1;
+		}
+		//car start == end et donc fin de ligne => elem diag
+		u[i] /= l[end_ind_jl];
+		i += 1;
+	}
+	return 0;
+}
+
+
+int invL(int n , int *il, int *jl, double *l, double *u, double *b){) {
+
+		int i = 0;
+		if (u == NULL){
+			u = malloc(sizeof(double) * n);
+		}
+		while (i < n){
+
+			int start_ind_jl = il[i];
+			int end_ind_jl = il[i+1] - 1;
+			u[i] = b[i]; //copie b sur u
+			while (start_ind_jl < end_ind_jl){
+
+				u[i] -= (l[start_ind_jl] 
+								* u[jl[start_ind_jl]]);
+				start_ind_jl += 1;
+			}
+			//car start == end et donc fin de ligne => elem diag
+			u[i] /= l[end_ind_jl];
+			i += 1;
+		}
+}
+	return 0;
+}
+
