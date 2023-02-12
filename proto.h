@@ -34,5 +34,8 @@ void plot_static(double *x, int m);
 //method.c
 int stationaryIter(int iter, int n, int *ia, int *ja, double *a,
 					 double *b, double *u, int *iB, int *jB, double *B);
+int gaussResL(int n , int *il, int *jl, double *l, double *x, double *b){) {
+
+
 
 #endif

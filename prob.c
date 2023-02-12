@@ -205,7 +205,18 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
 
 
 int in_hole(int ix, int iy, int y0, int y1, int x0, int x1){
-	if (ix >= x0 && ix <= x1 && iy >= y0 && iy <= y1){
+	
+    if (ix >= x0 && ix <= x1 && iy >= y0 && iy <= y1){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
+int on_bound(int ix, int iy, int m){
+	
+    if (iy == 0 || iy == (m-1) || ix == 0 || ix == (m-1)){
 		return 1;
 	}
 	else{

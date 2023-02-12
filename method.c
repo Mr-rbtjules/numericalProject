@@ -88,24 +88,66 @@ int backwardGS(){
 	return 0;
 }
 
-int stationaryIter(int iter, int n, int *ia, int *ja, double *a,
-					 double *b, double *u, int *iB, int *jB, double *B){
-	double *r;
+int stationaryIter(int iter, int n, int *ia, int *ja,
+					 double *a,double *b, double *u, int forward){
+	
+	if (iter != 0){
+		iter -= 1;
+		stationaryIter(iter, n, ia, ja, a,
+					 b, u, iB, jB, B);
 
-	//initialisation
-	*u = calloc(n * sizeof(double));
+	}
+	else{
+		//init qqchose
+		//initialisation u0
+		u = calloc(n * sizeof(double));
+		r = malloc(n *sizeof(double));
+		//qqchose
+	}
+	//rm
 	computeRes(n, ia, ja, a, u, b, r);
+	if (forward){
+		gaussResL()
+	}
+	//dm == solve B*d = r
+
+	//rm+1
+
+	//um+1
+	
 
 	for (int m = 0; m < iter; m++){
 		
 	}
 }
 
-int computeRes(int n, int *ia, int *ja, double *a, double *u, double *b, double *r){
+int plot(double *r)
 
-	double *au;
-	multMatVectCsr(n, ia, ja, a, u, au);
-	soustVect(n, b, au, r);
+int computeRes(int n, int *ia, int *ja, double *a, double *u, double *b, double *r){
+	//r = b -Au
+	if (b != NULL){
+		printf("Error b de syst non null\n");
+		return 1;
+	}
+	
+	int i = 0;
+	int jai = 0;
+	while (i < n){
+		r[i] = b[i];
+		int ite = ia[i + 1] - ia[i];
+		int j = 0;
+		while (j < ite){
+			r[i] -= a[jai + j] * u[ja[jai + j]]; 		
+			j += 1;
+		}
+		jai += ite;
+		i += 1;
+	}
+
+	
+	
+	//trop gourmant memoire multMatVectCsr(n, ia, ja, a, u, au);
+	//soustVect(n, b, au, r);
 
 	return 0;
 }
@@ -148,53 +190,56 @@ int soustVect(int n , double *v1, double *v2, double *vout){
 	return 0;
 }
 
-int gaussResD(int n , int *il, int *jl, double *l, double *u, double *b){) {
 
+
+
+//pas besoin de crer L, juste prendre ds A trou de balle
+int gaussResL(int n , int *il, int *jl, double *l, double *x, double *b){) {
+	//resoud Lx = b trouve x
 	int i = 0;
-	if (u == NULL){
-		u = malloc(sizeof(double) * n);
+	if (x == NULL){
+		x = malloc(sizeof(double) * n);
 	}
 	while (i < n){
 
 		int start_ind_jl = il[i];
 		int end_ind_jl = il[i+1] - 1;
-		u[i] = b[i]; //copie b sur u
-		while (start_ind_jl < end_ind_jl){
+		x[i] = b[i]; //copie b sur u
+		while (start_ind_jl < end_ind_jl && jl[start_ind_jl] < i){
 
-			u[i] -= (l[start_ind_jl] 
-							* u[jl[start_ind_jl]]);
+			x[i] -= (l[start_ind_jl] 
+							* x[jl[start_ind_jl]]);
 			start_ind_jl += 1;
 		}
 		//car start == end et donc fin de ligne => elem diag
-		u[i] /= l[end_ind_jl];
+		x[i] /= l[end_ind_jl];
 		i += 1;
 	}
 	return 0;
 }
 
+int gaussResU(int n , int *iu, int *ju, double *u, double *x, double *b){) {
+	//resoud Lx = b trouve x
+	int i = 0;
+	if (x == NULL){
+		x = malloc(sizeof(double) * n);
+	}
+	while (i < n){
 
-int invL(int n , int *il, int *jl, double *l, double *u, double *b){) {
+		int start_ind_ju = iu[i];
+		int end_ind_ju = iu[i+1] - 1;
+		x[i] = b[i]; //copie b sur u
+		while (start_ind_ju < end_ind_ju){
 
-		int i = 0;
-		if (u == NULL){
-			u = malloc(sizeof(double) * n);
+			x[i] -= (l[start_ind_ju] 
+							* x[ju[start_ind_ju]]);
+			start_ind_ju += 1;
 		}
-		while (i < n){
-
-			int start_ind_jl = il[i];
-			int end_ind_jl = il[i+1] - 1;
-			u[i] = b[i]; //copie b sur u
-			while (start_ind_jl < end_ind_jl){
-
-				u[i] -= (l[start_ind_jl] 
-								* u[jl[start_ind_jl]]);
-				start_ind_jl += 1;
-			}
-			//car start == end et donc fin de ligne => elem diag
-			u[i] /= l[end_ind_jl];
-			i += 1;
-		}
-}
+		//car start == end et donc fin de ligne => elem diag
+		x[i] /= u[end_ind_ju];
+		i += 1;
+	}
 	return 0;
 }
+
 
