@@ -11,7 +11,7 @@
 
 
 int restrictR(double **r, double **rc, int m, int *n){
-
+//ajouter mode multi
 
 	int ix, iy;
 
@@ -40,7 +40,10 @@ int restrictR(double **r, double **rc, int m, int *n){
 	int nxc = nx/2; // nb de points coars sur un ligne pas bord
     int nc = nxc * nxc - (pc * qc);
 
-	*rc = malloc(nc * sizeof(double));
+    if (*rc == NULL){
+        *rc = malloc(nc * sizeof(double));
+    }
+	
 
 	int skip_sud = 0;
     int skip_nord = 0;
@@ -126,6 +129,7 @@ int restrictR(double **r, double **rc, int m, int *n){
 
 
 int prolongR(double **u, double **uc, int m){ //ici m de u pas de uc !
+//ajouter mode multi
 
 	int ixc, iyc;
 
@@ -277,7 +281,111 @@ int prolongR(double **u, double **uc, int m){ //ici m de u pas de uc !
 }
 
 
-int probCoarse(int m, int level, double h, int **iac, int **jac, double **ac){
+int returnAc(int ix, int iy, int m, int level, double h, int *ia, int *ja, double *a){
+
+    //return Ac on the base of A
+
+	//level 1 : 2grid method
+	int multi = level -1;
+	//valeurs de u
+	double h = 3.0/(double)(m-1);
+    double invh2 = 1.0/(h*h);
+    int x1 = ((int)(COORD_X1 * (m-1)) /3)  -1; 
+    int x0 = (((int)(COORD_X0 * (m-1)) + ((3 - ((int)(COORD_X0*(m-1))%3))%3))/3)  -1;
+    int y1 = ((int)(COORD_Y1 * (m-1)) /3)  -1;
+    int y0 = (((int)(COORD_Y0 * (m-1)) + ((3 - ((int)(COORD_Y0*(m-1))%3))%3))/3)  -1;
+    
+    int nx = m-2;
+
+    int p = y1 - y0 + 1;
+    int q = x1 - x0 + 1;
+    int n = nx * nx - (p * q);
+   
+	double hc = 2*h;
+	double invh2c = 1.0/(hc*hc);  // ou 1/(4* h**2) = 0.25 * invh2
+
+	int x0c = (x0 / 2*multi); // va arrondir au point grille coarse a droite 
+	int x1c = ((x1+1)/2*multi) - 1; // permet si x1 pair on retire 1 
+	int y0c = (y0/2*multi); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int y1c = ((y1+1)/2*multi) - 1;
+	int pc = y1c - y0c + 1;
+    int qc = x1c - x0c + 1;
+
+	int nxc = nx/2; // nb de points coars sur un ligne pas bord
+    int nc = nxc * nxc - (pc * qc);
+	int nnzc = 5 * nxc * nxc - 4 * nxc ; 
+    //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
+    int trousc = (5 * (pc-2) * (qc-2) + 4 * 2 * (pc-2) + 4 * 2 * (qc-2) 
+                + 3 * 4 * 1 + 1 * 2 * pc + 1 * 2 * qc) + 2 * pc + 2 * qc;
+    nnzc -= trousc;
+
+	int nnz_save = nnz;
+    
+    //passage ligne suiv(plaque complete)
+    ind = 0;
+    nnzc = 0;
+    for (iyc = 0; iyc < nxc; iyc++) { //iy ix indice sur grille hors bords  mais position (ix+1)*h
+        for (ixc = 0; ixc < nxc; ixc++) {
+            //exclu interieur et bord du trou
+            if(! in_hole(ixc,iyc,y0c,y1c,x0c,x1c)){
+                //marquer le début de la ligne suivante dans le tableau 'ia'
+                (*iac)[ind] = nnzc;
+               
+                if (check_sud(ixc,iyc,y0c,y1c,x0c,x1c,nxc)){
+                    (*ac)[nnzc] = -invh2c;
+                    (*jac)[nnzc] = indice(ixc,iyc-1,y0c,y1c,x0c,x1c, nxc);//ind - nx + skip_sud;
+                    
+                    //-nx car on regarde delui d'en bas(shema)
+                    //+skip_sud car comme on a passe des points(trous)
+                    // nx ramene trop loin en arrière
+                    nnzc++;
+                }
+
+                //replissage de la ligne : voisin ouest 
+                //si pas a droite d'un bord
+               
+                if (check_west(ixc,iyc,y0c,y1c,x0c,x1c,nxc)){
+                    (*ac)[nnzc] = -invh2c;
+                    (*jac)[nnzc] = ind - 1;
+                    nnzc++;
+                }
+                
+
+                // replissage de la ligne : élém. diagonal
+                (*ac)[nnzc] = 4.0*invh2c;
+                (*jac)[nnzc] = ind;
+                
+                nnzc++;
+                
+                // replissage de la ligne : voisin est
+                //si pas a gauche d'un bord
+                
+                if ( check_est(ixc,iyc,y0c,y1c,x0c,x1c,nxc) ){
+                    (*ac)[nnzc] = -invh2c;
+                    (*jac)[nnzc] = ind + 1;
+                    nnzc++;
+                }
+
+                // replissage de la ligne : voisin nord
+                //si pas en dessous d'un bord
+                
+                if ( check_nord(ixc,iyc,y0c,y1c,x0c,x1c,nxc) ){
+                        (*ac)[nnzc] = -invh2c;
+                        (*jac)[nnzc] = indice(ixc,iyc+1,y0c,y1c,x0c,x1c, nxc);
+                        nnzc++;
+                }
+                // numéro de l'équation
+                ind += 1;
+                
+            }
+        }
+    }
+
+	return 0;
+}	
+
+int probMg(int m, int level, int *iac, int *jac, double *ac){
+
 
 	//level 1 : 2grid method
 	int ixc, iyc;
@@ -308,28 +416,25 @@ int probCoarse(int m, int level, double h, int **iac, int **jac, double **ac){
     */
 	//peut pas calculer de nouveau m ou nx pour position du trou
 
-	double hc = 2*h;
-	double invh2c = 1.0/(hc*hc); 
+	double hc = h*exp(2, level);
+	double invh2c = 3.0/(hc*hc); 
 
-	int x0c = (x0 / 2*multi); // va arrondir au point grille coarse a droite 
-	int x1c = ((x1+1)/2*multi) - 1; // permet si x1 pair on retire 1 
-	int y0c = (y0/2*multi); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1c = ((y1+1)/2*multi) - 1;
-	int pc = y1c - y0c + 1;
+    int x0c = x0 / exp(2, i); // va arrondir au point grille coarse a droite 
+    int x1c = ((x1+1)/exp(2, i)) - 1; // permet si x1 pair on retire 1 
+    int y0c = (y0/exp(2, i)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int y1c = ((y1+1)/exp(2, i)) - 1;
+    int pc = y1c - y0c + 1;
     int qc = x1c - x0c + 1;
 
-	int nxc = nx/2; // nb de points coars sur un ligne pas bord
+    int nxc = nx/exp(2,i); // nb de points coars sur un ligne pas bord
     int nc = nxc * nxc - (pc * qc);
-	int nnzc = 5 * nxc * nxc - 4 * nxc ; 
+    int nnzc = 5 * nxc * nxc - 4 * nxc ; 
     //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
     int trousc = (5 * (pc-2) * (qc-2) + 4 * 2 * (pc-2) + 4 * 2 * (qc-2) 
                 + 3 * 4 * 1 + 1 * 2 * pc + 1 * 2 * qc) + 2 * pc + 2 * qc;
     nnzc -= trousc;
 
-	*iac  = malloc((nc + 1) * sizeof(int));
-    *jac  = malloc(nnzc * sizeof(int));
-    *ac   = malloc(nnzc * sizeof(double));
-
+	
 	int nnz_save = nnz;
     
     //passage ligne suiv(plaque complete)
