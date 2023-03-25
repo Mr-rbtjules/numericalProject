@@ -36,7 +36,7 @@ void plot_static(double *x, int m, int level){
     int x0 = (((int)(COORD_X0 * (m-1)) + ((3 - ((int)(COORD_X0*(m-1))%3))%3))/3)  -1;
     int y1 = ((int)(COORD_Y1 * (m-1)) /3)  -1;
     int y0 = (((int)(COORD_Y0 * (m-1)) + ((3 - ((int)(COORD_Y0*(m-1))%3))%3))/3)  -1;
-    
+    printf("%d %d %d %d\n", x1,x0,y1,y0);
     int nx = m-2;
     //nb de points sur la largeur du trous
 
