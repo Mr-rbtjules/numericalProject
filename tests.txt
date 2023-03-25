@@ -1,0 +1,22 @@
+a tester :
+
+0.plot
+-plot_static
+-plot_dyn for diff m value
+
+
+1.grid corr
+-restrict
+-prolong
+
+
+2.method
+-compute res
+-gaussResL/u
+-add vect
+
+-stationnary iter
+-back/forw
+
+-finir mg method
+-tester

@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
 
   /* déclarer les variables */
 
-  int m = 15; //  >= 13 et impaire pour la restriction et conserver distance par rapport au bords
+  int m = 14; //  >= 13 et impaire pour la restriction et conserver distance par rapport au bords
   int n;
   int *ia = NULL;
   int *ja = NULL; 
@@ -50,6 +50,12 @@ int main(int argc, char *argv[])
      return 1;
   t2 = mytimer();
   printf("\nTemps de solution (CPU): %5.1f sec\n",t2-t1);
+
+
+//plot
+   plot_static(x, m, 1);
+
+
 
   /* libérér la mémoire */
   free(ia); free(ja); free(a); free(b); free(x);

@@ -215,9 +215,9 @@ int in_hole(int ix, int iy, int y0, int y1, int x0, int x1){
 	}
 }
 
-int on_bound(int ix, int iy, int m){
+int on_bound(int px, int py, int m){
 	
-    if (iy == 0 || iy == (m-1) || ix == 0 || ix == (m-1)){
+    if (py == 0 || py == (m-1) || px == 0 || px == (m-1)){
 		return 1;
 	}
 	else{

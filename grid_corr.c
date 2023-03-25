@@ -10,6 +10,9 @@
 
 
 
+/*fonctionnnement des level
+celui tt en haut avec le h le plus petit = level 0 puis coarse 1 coarse coarse 2 etc*/
+
 int restrictR(double **r, double **rc, int m, int *n){
 //ajouter mode multi
 
@@ -384,12 +387,11 @@ int returnAc(int ix, int iy, int m, int level, double h, int *ia, int *ja, doubl
 	return 0;
 }	
 
-int probMg(int m, int level, int *iac, int *jac, double *ac){
+int probMg(int m, int level, int *iac, int *jac, double *ac, double *b){
 
 
 	//level 1 : 2grid method
 	int ixc, iyc;
-	int multi = level -1;
 	//valeurs de u
 	double h = 3.0/(double)(m-1);
     double invh2 = 1.0/(h*h);
@@ -419,14 +421,14 @@ int probMg(int m, int level, int *iac, int *jac, double *ac){
 	double hc = h*exp(2, level);
 	double invh2c = 3.0/(hc*hc); 
 
-    int x0c = x0 / exp(2, i); // va arrondir au point grille coarse a droite 
-    int x1c = ((x1+1)/exp(2, i)) - 1; // permet si x1 pair on retire 1 
-    int y0c = (y0/exp(2, i)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int x0c = x0 / exp(2, level); // va arrondir au point grille coarse a droite 
+    int x1c = ((x1+1)/exp(2, level)) - 1; // permet si x1 pair on retire 1 
+    int y0c = (y0/exp(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
     int y1c = ((y1+1)/exp(2, i)) - 1;
     int pc = y1c - y0c + 1;
     int qc = x1c - x0c + 1;
 
-    int nxc = nx/exp(2,i); // nb de points coars sur un ligne pas bord
+    int nxc = nx/exp(2,level); // nb de points coars sur un ligne pas bord
     int nc = nxc * nxc - (pc * qc);
     int nnzc = 5 * nxc * nxc - 4 * nxc ; 
     //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
@@ -445,31 +447,41 @@ int probMg(int m, int level, int *iac, int *jac, double *ac){
             //exclu interieur et bord du trou
             if(! in_hole(ixc,iyc,y0c,y1c,x0c,x1c)){
                 //marquer le début de la ligne suivante dans le tableau 'ia'
-                (*iac)[ind] = nnzc;
+                iac[ind] = nnzc;
                
                 if (check_sud(ixc,iyc,y0c,y1c,x0c,x1c,nxc)){
-                    (*ac)[nnzc] = -invh2c;
-                    (*jac)[nnzc] = indice(ixc,iyc-1,y0c,y1c,x0c,x1c, nxc);//ind - nx + skip_sud;
+                    ac[nnzc] = -invh2c;
+                    jac[nnzc] = indice(ixc,iyc-1,y0c,y1c,x0c,x1c, nxc);//ind - nx + skip_sud;
                     
                     //-nx car on regarde delui d'en bas(shema)
                     //+skip_sud car comme on a passe des points(trous)
                     // nx ramene trop loin en arrière
                     nnzc++;
                 }
+                else{
+                    if (level ==0){
+                        b[ind] += computeBound((ix+ 1)*h, (iy + 1 -1)*h); 
+                    }
+                }
 
                 //replissage de la ligne : voisin ouest 
                 //si pas a droite d'un bord
                
                 if (check_west(ixc,iyc,y0c,y1c,x0c,x1c,nxc)){
-                    (*ac)[nnzc] = -invh2c;
-                    (*jac)[nnzc] = ind - 1;
+                    ac[nnzc] = -invh2c;
+                    jac[nnzc] = ind - 1;
                     nnzc++;
+                }
+                else{
+                    if (level ==0){
+                        b[ind] += computeBound((ix + 1 - 1)*h, (iy + 1)*h);
+                    }
                 }
                 
 
                 // replissage de la ligne : élém. diagonal
-                (*ac)[nnzc] = 4.0*invh2c;
-                (*jac)[nnzc] = ind;
+                ac[nnzc] = 4.0*invh2c;
+                jac[nnzc] = ind;
                 
                 nnzc++;
                 
@@ -477,18 +489,28 @@ int probMg(int m, int level, int *iac, int *jac, double *ac){
                 //si pas a gauche d'un bord
                 
                 if ( check_est(ixc,iyc,y0c,y1c,x0c,x1c,nxc) ){
-                    (*ac)[nnzc] = -invh2c;
-                    (*jac)[nnzc] = ind + 1;
+                    ac[nnzc] = -invh2c;
+                    jac[nnzc] = ind + 1;
                     nnzc++;
+                }
+                else{
+                    if (level ==0){
+                        b[ind] += computeBound((ix + 1 +1)*h, (iy + 1)*h);
+                    }
                 }
 
                 // replissage de la ligne : voisin nord
                 //si pas en dessous d'un bord
                 
                 if ( check_nord(ixc,iyc,y0c,y1c,x0c,x1c,nxc) ){
-                        (*ac)[nnzc] = -invh2c;
-                        (*jac)[nnzc] = indice(ixc,iyc+1,y0c,y1c,x0c,x1c, nxc);
+                        ac[nnzc] = -invh2c;
+                        jac[nnzc] = indice(ixc,iyc+1,y0c,y1c,x0c,x1c, nxc);
                         nnzc++;
+                }
+                else{
+                    if (level ==0){
+                        b[ind] += computeBound((ix + 1)*h, (iy + 1 +1)*h);
+                    }
                 }
                 // numéro de l'équation
                 ind += 1;

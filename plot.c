@@ -1,12 +1,14 @@
 #include<stdlib.h>
 #include<stdio.h>
 #include<math.h>
-#include <proto.h>
+#include "proto.h"
 
 #define COORD_X0 1.0
 #define COORD_X1 2.5
 #define COORD_Y0 1.5
 #define COORD_Y1 2.0
+
+#define TAILLE_MAX 200
 
 
 int add_plot(double *x, int n){
@@ -34,7 +36,15 @@ void plot_static(double *x, int m, int level){
     int x0 = (((int)(COORD_X0 * (m-1)) + ((3 - ((int)(COORD_X0*(m-1))%3))%3))/3)  -1;
     int y1 = ((int)(COORD_Y1 * (m-1)) /3)  -1;
     int y0 = (((int)(COORD_Y0 * (m-1)) + ((3 - ((int)(COORD_Y0*(m-1))%3))%3))/3)  -1;
-    /*
+    
+    int nx = m-2;
+    //nb de points sur la largeur du trous
+
+    int p = y1 - y0 + 1;//m%2 + m/6; //== nb de points entre y1 et y0
+    // "" sur la longueur
+    int q = x1- x0 + 1;//m%2 + m/2;
+    //plaque hors bords et trous
+    int n = nx * nx - (p * q);
     
     /*creation du ficher*/
     FILE* pointFile = NULL;                        //renvoi un pointeur pointant vers un type FILE
@@ -47,15 +57,19 @@ void plot_static(double *x, int m, int level){
         /*Calcul des constantes*/
         
         int ind = 0;
-        for (int iy = 0; iy < m; iy++){ //passage ligne suivante
-            for (int ix = 0; ix < m; ix++){      //passage colonne suivante
+        for (int py = 0; py < m; py++){ //passage ligne suivante
+            for (int px = 0; px < m; px++){      //passage colonne suivante
                 
                 //si sur bord ou trou
-                if ( on_bound(ix,iy,m) || in_hole(ix,iy,y0,y1,x0,x1)){
-                    fprintf(pointFile, "%f %f 0\n", (ix*h), iy*h);
+                if ( on_bound(px,py,m) ){
+                    
+                    fprintf(pointFile, "%f %f 0\n", (px*h), py*h);
+                }
+                else if ( in_hole(px-1,py-1,y0,y1,x0,x1)){
+                    fprintf(pointFile, "%f %f 0\n", (px*h), py*h);
                 }
                 else{
-                    fprintf(pointFile, "%f %f %f\n", (ix*h), (iy*h), x[ind]);
+                    fprintf(pointFile, "%f %f %f\n", (px*h), (py*h), x[ind]);
                     ind += 1;
                 }
             }
@@ -63,6 +77,10 @@ void plot_static(double *x, int m, int level){
         }
         //fermeture du ficher
         fclose(pointFile);
+        printf("%d %d\n", ind, n);
+        for (int i=0; i<n; i++){
+            printf(" %lf ", x[i]);
+        }
     }
 
     //plot le graphique

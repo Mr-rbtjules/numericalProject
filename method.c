@@ -1,7 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
-
 #include <math.h>
+
+
 //ial liste de liste d'elem deja compute 
 int tg_rec(int level, int m, int *nl, int mu1, int mu2, int **ial, 
 					int **jal, double **al, double *b, double **ul, double **rl, double **dl){
@@ -11,7 +12,7 @@ int tg_rec(int level, int m, int *nl, int mu1, int mu2, int **ial,
 		forwardGS(mu1, nl[level] , ial[level], jal[level], al[level], b[level], u[level], r[level], d[level]);
 		
 		//restrict r
-
+	//!!! pblme check b calculer que 1 er level et apres que des residus ? verif ça aussi dans l'algo
 		computeRes(n, ial[level], jal[level], al[level], ul[level], bl[level], &rl[level]);
 		restrictR(m, level, rl[level],rl[level-1], m, nl[level]); //modify malloc init
 		//au dessus s'effecctue du haut du v vers le bas
@@ -27,12 +28,8 @@ int tg_rec(int level, int m, int *nl, int mu1, int mu2, int **ial,
 	}
 	else {
 		//solve coarse pblm
-		solve_umfpack(n, ial[level], jal[level], al[level], rl[level], ul[level]]);
+		solve_umfpack(n, ial[level], jal[level], al[level], rl[level], ul[level]);
 	}
-	
-	
-	
-		
 	return 0;
 }
 
@@ -47,26 +44,6 @@ int computeSize(int m, int level, int m, int **size_ial,int **size_jal,
 	*size_ul = malloc(level * sizeof(int));
 	*size_dl = malloc(level * sizeof(int));
 
-    /*int x1 = ((int)(COORD_X1 * (m-1)) /3)  -1; 
-    int x0 = (((int)(COORD_X0 * (m-1)) + ((3 - ((int)(COORD_X0*(m-1))%3))%3))/3)  -1;
-    int y1 = ((int)(COORD_Y1 * (m-1)) /3)  -1;
-    int y0 = (((int)(COORD_Y0 * (m-1)) + ((3 - ((int)(COORD_Y0*(m-1))%3))%3))/3)  -1;
-    
-    int p = y1 - y0 + 1;
-    int q = x1- x0 + 1;
-    int n = nx * nx - (p * q);
-    int nnz = 5 * nx * nx - 4 * nx ; 
-    int trous = (5 * (p-2) * (q-2) + 4 * 2 * (p-2) + 4 * 2 * (q-2) 
-                + 3 * 4 * 1 + 1 * 2 * p + 1 * 2 * q) + 2 * p + 2 * q;
-    nnz -= trous;
-
-	
-	size_ial[0][0] = n + 1;
-	size_jal[0][0] = nnz;
-	size_al[0][0] = nnz;
-	size_dl[0][0] = n;
-	size_ral[0][0] = n;
-	size_ual[0][0] = n;*/
 	for (int i = 1; level){
 		
 		int x0c = x0 / exp(2, i); // va arrondir au point grille coarse a droite 
@@ -91,8 +68,8 @@ int computeSize(int m, int level, int m, int **size_ial,int **size_jal,
 		size_ral[0][i] = nc;
 		size_ual[0][i] = nc;
 	
-	return 0;
 	}
+	return 0;
 }
 
 int mg_method(int iter, int level, int m){
@@ -105,6 +82,7 @@ int mg_method(int iter, int level, int m){
 	double **ul;
 	double **dl;
 	
+	double *b;
 	int *size_ial;
 	int *size_jal;
 	int *size_al;
@@ -114,6 +92,7 @@ int mg_method(int iter, int level, int m){
 
 	computeSize(&size_ial, &size_jal, &size_al, &size_rl, &size_dl, &size_ul);
 
+	b = malloc(size_ul[0]* sizeof(double));
 	for (int i = 0; i < level; i++){
 		ial[i] = malloc(size_ial[i] * sizeof(int));
 		jal[i] = malloc(size_jal[i] * sizeof(int));
@@ -121,11 +100,11 @@ int mg_method(int iter, int level, int m){
 		rl[i] = malloc(size_rl[i] * sizeof(double));
 		dl[i] = malloc(size_dl[i] * sizeof(double));
 		ul[i] = malloc(size_ul[i] * sizeof(double));
+		//compute a and all ac
+		probMg(m, i, ial[i], jal[i], al[i], b);
 	}
 	
-	//compute a
 	
-
 	for (int i = 0; i < iter; i++){
 		tg_rec(level, m, size_ul, mu1, mu2, ial, 
 					jal, al, b, ul, rl, dl);
@@ -195,7 +174,7 @@ int stationaryIter( int iter, int n, int *ia, int *ja,
 		gaussResL(n , ia, ja, a, *d, *r);
 	}
 	else{
-		gaussResR(n , ia, ja, a, *d, *r);
+		gaussResU(n , ia, ja, a, *d, *r);
 	}
 	
 	//um+1 (ajout de la correction)
