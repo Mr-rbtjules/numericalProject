@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
 
   /* déclarer les variables */
 
-  int m = 14; //  >= 13 et impaire pour la restriction et conserver distance par rapport au bords
+  int m = 13; //  >= 13 et impaire pour la restriction et conserver distance par rapport au bords
   int n;
   int *ia = NULL;
   int *ja = NULL; 
@@ -28,11 +28,11 @@ int main(int argc, char *argv[])
         m++;
    }
 
-  if (prob(m, &n, &ia, &ja, &a, &b))
+  if (probMg(m, 0, &n, &ia, &ja, &a, &b))
      return 1;
   printf("\nPROBLEM: ");
   printf("m = %5d   n = %8d  nnz = %9d\n", m, n, ia[n] );
-
+   
 
    
   /* allouer la mémoire pour le vecteur de solution */
@@ -51,7 +51,14 @@ int main(int argc, char *argv[])
   t2 = mytimer();
   printf("\nTemps de solution (CPU): %5.1f sec\n",t2-t1);
 
+   for( int i = 0; i < n; i++){
+         printf(" %lf ", x[i]);
+   }
 
+   //res
+   double *r = malloc(n*sizeof(double));
+   double rn = computeResNorm(n,ia,ja,a,x, b,r);
+   printf(" \nnorme %.10lf\n", rn);
 //plot
    plot_static(x, m, 1);
 

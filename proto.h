@@ -22,11 +22,11 @@ int check_sw(int ix, int iy, int y0, int y1, int x0, int x1, int nx);
 int check_se(int ix, int iy, int y0, int y1, int x0, int x1, int nx);
 int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx);
 int on_bound(int ix, int iy, int m);
-
+void computeHole(int *x0, int *x1, int *y0, int *y1, int m);
 //grid_corr.c
 int restrictR(double **r, double **rc, int m, int *n);
 int prolongR(double **u, double **uc, int m);
-int probMg(int m, int level, int *iac, int *jac, double *ac, double *b);
+int probMg(int m, int level, int nc, int *iac, int *jac, double *ac, double *b);
 //plot.c
 void plot_static(double *x, int m, int level);
 
@@ -35,6 +35,9 @@ int stationaryIter(int iter, int n, int *ia, int *ja, double *a,
 					 double *b, double *u, int forward);
 int gaussResL(int n , int *il, int *jl, double *l, double *x, double *b);
 
+//ds prob a changer
+int computeRes(int n, int *ia, int *ja, double *a, double *u, double *b, double *r);
+double computeResNorm(int n, int *ia, int *ja, double *a, double *u, double *b, double *r);
 
 
 #endif

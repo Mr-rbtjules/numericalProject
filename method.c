@@ -183,7 +183,6 @@ int stationaryIter( int iter, int n, int *ia, int *ja,
 	return 0;
 }
 
-int plot(double *r);
 
 int computeRes(int n, int *ia, int *ja, double *a, double *u, double *b, double *r){
 	
@@ -200,14 +199,23 @@ int computeRes(int n, int *ia, int *ja, double *a, double *u, double *b, double 
 		}
 		jai += ite;
 		i += 1;
-	}
-
-	
-	
-	//trop gourmant memoire multMatVectCsr(n, ia, ja, a, u, au);
+	}	
+	//trop gourmant  de faire memoire multMatVectCsr(n, ia, ja, a, u, au);
 	//soustVect(n, b, au, r);
 
 	return 0;
+}
+
+double computeResNorm(int n, int *ia, int *ja, double *a, double *u, double *b, double *r){
+
+	double rn = 0;
+
+	computeRes(n,ia,ja,a,u,b,r);
+	for (int i = 0; i < n; i++){
+		rn += r[i] * r[i];
+	}
+	rn = sqrt(rn);
+	return rn;
 }
 
 

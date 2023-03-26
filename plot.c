@@ -32,11 +32,15 @@ void plot_static(double *x, int m, int level){
 
     // coordonnees du trou sur la grille discrete
     
-    int x1 = ((int)(COORD_X1 * (m-1)) /3)  -1; 
-    int x0 = (((int)(COORD_X0 * (m-1)) + ((3 - ((int)(COORD_X0*(m-1))%3))%3))/3)  -1;
+    /*int x1 = ((int)(COORD_X1 * (m-1)) /3)  -1; 
+    int x0 = (((int)(COORD_X0 * (m-1)) + ((3 - ((int)(COORD_X0*(m-1))%3))%3))/3)  -1;//4 alors que 3
     int y1 = ((int)(COORD_Y1 * (m-1)) /3)  -1;
-    int y0 = (((int)(COORD_Y0 * (m-1)) + ((3 - ((int)(COORD_Y0*(m-1))%3))%3))/3)  -1;
-    printf("%d %d %d %d\n", x1,x0,y1,y0);
+    int y0 = (((int)(COORD_Y0 * (m-1)) + ((3 - ((int)(COORD_Y0*(m-1))%3))%3))/3)  -1; //6 alors qu'on veut 5
+    */
+    int x0,x1,y0,y1;
+    computeHole(&x0,&x1,&y0,&y1, m); //y0 = 7 mais devrait 6 comme 16
+
+    
     int nx = m-2;
     //nb de points sur la largeur du trous
 
@@ -45,7 +49,7 @@ void plot_static(double *x, int m, int level){
     int q = x1- x0 + 1;//m%2 + m/2;
     //plaque hors bords et trous
     int n = nx * nx - (p * q);
-    
+   
     /*creation du ficher*/
     FILE* pointFile = NULL;                        //renvoi un pointeur pointant vers un type FILE
     const char* file_name = "coord_stat.dat";
@@ -77,10 +81,7 @@ void plot_static(double *x, int m, int level){
         }
         //fermeture du ficher
         fclose(pointFile);
-        printf("%d %d\n", ind, n);
-        for (int i=0; i<n; i++){
-            printf(" %lf ", x[i]);
-        }
+        
     }
 
     //plot le graphique
@@ -93,24 +94,16 @@ void plot_static(double *x, int m, int level){
     system("rm coord_stat.dat");
 
 }
-void plot_dyn(double **u_t, int m, int size_ut, double dt)
+/*
+void plot_dyn(double **u_l, int m, int *size_ul, double time)
 {
 
-    /*cree un fichier texte contenant 2 colonnes
-    avec les coordonnées x et y et des colonnes sucessive donnant la temperature au cours du temps
     
-    Arguments
-    =========
-    u_t (input) - pointeur vers les vecteurs u_ti
-    m (input)   - nombre de points par directions dans la grille
-    ite (input) - nombre d'elements de u_t
-    dt (input)  - pas
-    */
     
     double h = 3.0 / (double)(m-1);
     
-    
-    /*creation du ficher*/
+    int x0,x1,y0,y1;
+    computeHole(&x0,&x1,&y0,&y1, m);
     FILE* pointFile = NULL;                        //renvoi un pointeur pointant vers un type FILE
     const char* file_name = "coord_dyn.dat";
 
@@ -120,7 +113,6 @@ void plot_dyn(double **u_t, int m, int size_ut, double dt)
 
         printf("Creation du fichier .dat\n");
 
-        /*Calcul des constantes*/
         int y0 = (int)ceil(COORD_Y0/h);
         int y1 = (int)ceil(COORD_Y1/h);
         int x0 = (int)ceil(COORD_X0/h);
@@ -159,7 +151,6 @@ void plot_dyn(double **u_t, int m, int size_ut, double dt)
     }
     
 
-    /*script gnuplot*/
 
     printf("Creation du gif...\n");
 
@@ -188,4 +179,6 @@ void plot_dyn(double **u_t, int m, int size_ut, double dt)
     //supprime coord_dyn.dat
     system("rm coord_dyn.dat");
 }
+*/
+
 

@@ -64,10 +64,14 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
 
     // coordonnees du trou sur la grille discrete
     
-    int x1 = ((int)(COORD_X1 * (m-1)) /3)  -1; 
+    /*int x1 = ((int)(COORD_X1 * (m-1)) /3)  -1; 
     int x0 = (((int)(COORD_X0 * (m-1)) + ((3 - ((int)(COORD_X0*(m-1))%3))%3))/3)  -1;
     int y1 = ((int)(COORD_Y1 * (m-1)) /3)  -1;
     int y0 = (((int)(COORD_Y0 * (m-1)) + ((3 - ((int)(COORD_Y0*(m-1))%3))%3))/3)  -1;
+    */
+    int x0,x1,y0,y1;
+    computeHole(&x0,&x1,&y0,&y1, m);
+    
     /*
     
     *m-1 car points sur la grille sont a des fraction de m-1
@@ -189,7 +193,7 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
             }
         }
     }
-
+    printf("%d \n", ind);
     if (nnz == nnz_save){
         (*ia)[ind] = nnz;
     }
@@ -197,6 +201,9 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
         printf("Error nnz = %d!= nnz = %d\n", nnz, nnz_save);
         return 1;
     }
+     for (int i=0; i<*n; i++){
+            printf(" %lf", (*b)[i]);
+        }
     
 
 
@@ -313,7 +320,7 @@ int check_se(int ixc, int iyc, int y0, int y1, int x0, int x1, int nx){
 	}
 }
 
-int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx){ //ix iy -> indice u
+int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx){ //ix iy -> indice dans matrice u (csr)
 	
 	int ind;
 	int p = y1 - y0 + 1;
@@ -332,6 +339,77 @@ int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx){ //ix iy -> in
 	}
 
 	return ind;
+}
+
+
+void computeHole(int *x0, int *x1, int *y0, int *y1, int m){
+
+    *x0 = 0;
+    *x1 = 0;
+    *y0 = 0;
+    *y1 = 0;
+    //x0
+    while ((*x0+1)*3 < COORD_X0*(m-1)){
+        *x0 += 1;
+    }
+    if ((*x0+1)*3 != COORD_X0*(m-1)){
+        *x0 -= 1;
+    }
+    //x1
+    while ((*x1+1)*3 < COORD_X1*(m-1)){
+        *x1 += 1;
+    }
+    if ((*x1+1)*3 != COORD_X1*(m-1)){
+        *x1 -= 1;
+    }
+    //y0
+    while ((*y0+1)*3 < COORD_Y0*(m-1)){
+        *y0 += 1;
+    }
+    if ((*y0+1)*3 != COORD_Y0*(m-1)){
+        *y0 -= 1;
+    }
+    //y1
+    while ((*y1+1)*3 < COORD_Y1*(m-1)){
+        *y1 += 1;
+    }
+    if ((*y1+1)*3 != COORD_Y1*(m-1)){
+        *y1 -= 1;
+    }
+}
+
+int computeRes(int n, int *ia, int *ja, double *a, double *u, double *b, double *r){
+	
+	//r = b -Au
+	int i = 0;
+	int jai = 0;
+	while (i < n){
+		r[i] = b[i];
+		int ite = ia[i + 1] - ia[i];
+		int j = 0;
+		while (j < ite){
+			r[i] -= a[jai + j] * u[ja[jai + j]]; 		
+			j += 1;
+		}
+		jai += ite;
+		i += 1;
+	}	
+	//trop gourmant  de faire memoire multMatVectCsr(n, ia, ja, a, u, au);
+	//soustVect(n, b, au, r);
+
+	return 0;
+}
+
+double computeResNorm(int n, int *ia, int *ja, double *a, double *u, double *b, double *r){
+
+	double rn = 0;
+
+	computeRes(n,ia,ja,a,u,b,r);
+	for (int i = 0; i < n; i++){
+		rn += r[i] * r[i];
+	}
+	rn = sqrt(rn);
+	return rn;
 }
 
 
