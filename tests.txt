@@ -1,14 +1,17 @@
 a tester :
 
+prob                       V
+
 0.plot
 -plot_static               V
 -plot multi
 
 
 1.grid corr
+--prob mg        
 -restrict
 -prolong
--prob mg
+
 
 
 2.method
