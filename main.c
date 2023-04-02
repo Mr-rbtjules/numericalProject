@@ -28,7 +28,18 @@ int main(int argc, char *argv[])
         m++;
    }
 
-  if (probMg(m, 0, &n, &ia, &ja, &a, &b))
+
+/*alloue la memoire ici pour les tests*/
+
+allocGridLevel(m, 0, &n, &ia, &ja, &a, &b);
+
+/*
+est ce qu'on peut resoudre des grilles coarse avec un b coarse est ce que ça a du sens ??
+
+*/
+
+
+  if (probMg(m, 0, &n, ia, ja, a, b))
      return 1;
   printf("\nPROBLEM: ");
   printf("m = %5d   n = %8d  nnz = %9d\n", m, n, ia[n] );

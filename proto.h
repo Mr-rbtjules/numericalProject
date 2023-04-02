@@ -26,7 +26,9 @@ void computeHole(int *x0, int *x1, int *y0, int *y1, int m);
 //grid_corr.c
 int restrictR(int level, double **r, double **rc, int m, int *nc);
 int prolongR(int level, double **up, double **uc, int m, int *np);
-int probMg(int m, int level, int nc, int *iac, int *jac, double *ac, double *b);
+int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *b);
+int allocGridLevel(int m, int level, int *nl, int **ial,
+                     int **jal, double **al, double **bl);
 //plot.c
 void plot_static(double *x, int m, int level);
 

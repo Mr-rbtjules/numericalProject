@@ -1,20 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "proto.h"
+#include <math.h>
 
 
 #define SCALE_FACT 0.5
-#define COORD_X0 1.0 //col bord gauche
-#define COORD_X1 2.5 // col bord droit
-#define COORD_Y0 1.5 //ligne bord bas
-#define COORD_Y1 2.0 //ligne bord haut
-
-
-
-
-
-
-
 /*
 remettre restr prol dans proto terminer restricr en multilevel
 
@@ -37,11 +27,7 @@ int restrictR(int level, double **rp, double **rc, int m, int *nc){
     //level 0
 	double h = 3.0/(double)(m-1);
     double invh2 = 1.0/(h*h);
-    /*int x1 = ((int)(COORD_X1 * (m-1)) /3)  -1; 
-    int x0 = (((int)(COORD_X0 * (m-1)) + ((3 - ((int)(COORD_X0*(m-1))%3))%3))/3)  -1;
-    int y1 = ((int)(COORD_Y1 * (m-1)) /3)  -1;
-    int y0 = (((int)(COORD_Y0 * (m-1)) + ((3 - ((int)(COORD_Y0*(m-1))%3))%3))/3)  -1;
-    */
+    
 
     int x0,x1,y0,y1;
     computeHole(&x0,&x1,&y0,&y1, m);
@@ -54,18 +40,18 @@ int restrictR(int level, double **rp, double **rc, int m, int *nc){
 
     //level level
 
-    double hc = h*exp(2, level-1);
+    double hc = h*pow(2, level-1);
 	double invh2c = 3.0/(hc*hc); 
 
-    int x0c = x0 / exp(2, level-1); // va arrondir au point grille coarse a droite 
-    int x1c = ((x1+1)/exp(2, level-1)) - 1; // permet si x1 pair on retire 1 
-    int y0c = (y0/exp(2, level-1)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1c = ((y1+1)/exp(2, leve-1l)) - 1;
+    int x0c = x0 / pow(2, level-1); // va arrondir au point grille coarse a droite 
+    int x1c = ((x1+1)/pow(2, level-1)) - 1; // permet si x1 pair on retire 1 
+    int y0c = (y0/pow(2, level-1)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int y1c = ((y1+1)/pow(2, level-1l)) - 1;
     int pc = y1c - y0c + 1;
     int qc = x1c - x0c + 1;
 
-    int nxc = nx/exp(2,level-1); // nb de points coars sur un ligne pas bord
-    int nc_check = nxc * nxc - (pc * qc);
+    int nxc = nx/pow(2,level-1); // nb de points coars sur un ligne pas bord
+    *nc = nxc * nxc - (pc * qc);
     int nnzc = 5 * nxc * nxc - 4 * nxc ; 
     //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
     int trousc = (5 * (pc-2) * (qc-2) + 4 * 2 * (pc-2) + 4 * 2 * (qc-2) 
@@ -74,18 +60,18 @@ int restrictR(int level, double **rp, double **rc, int m, int *nc){
 
     //level +1
 
-    double hp = h*exp(2, level);
+    double hp = h*pow(2, level);
 	double invh2p = 3.0/(hp*hp); 
 
-    int x0p = x0 / exp(2, level); // va arrondir au point grille coarse a droite 
-    int x1p = ((x1+1)/exp(2, level)) - 1; // permet si x1 pair on retire 1 
-    int y0p = (y0/exp(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1p = ((y1+1)/exp(2, level)) - 1;
+    int x0p = x0 / pow(2, level); // va arrondir au point grille coarse a droite 
+    int x1p = ((x1+1)/pow(2, level)) - 1; // permet si x1 pair on retire 1 
+    int y0p = (y0/pow(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int y1p = ((y1+1)/pow(2, level)) - 1;
     int pp = y1p - y0p + 1;
     int qp = x1p - x0p + 1;
 
-    int nxp = nx/exp(2,level); // nb de points coars sur un ligne pas bord
-    int np_check = nxp * nxp - (pp * qp);
+    int nxp = nx/pow(2,level); // nb de points coars sur un ligne pas bord
+    int np = nxp * nxp - (pp * qp);
     int nnzp = 5 * nxp * nxp - 4 * nxp ; 
     //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
     int trousp = (5 * (pp-2) * (qp-2) + 4 * 2 * (pp-2) + 4 * 2 * (qp-2) 
@@ -95,15 +81,16 @@ int restrictR(int level, double **rp, double **rc, int m, int *nc){
 
 
     if (*rc == NULL){
-        *rc = malloc(nc * sizeof(double));
+        *rc = malloc(*nc * sizeof(double));
     }
 	
 
-	int skip_sud = 0;
-    int skip_nord = 0;
+	
 
-	int np = 0;
-	int *nc = 0;
+    int np_save = np;
+	np = 0;
+    int nc_save = *nc;
+	*nc = 0;
 
 
 	for (int iyp = 0; iyp < nxp; iyp++){
@@ -121,7 +108,7 @@ int restrictR(int level, double **rp, double **rc, int m, int *nc){
                     // + verification si pas au dessus d'un bord
                     if (check_sud(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){
                         
-                        (*rc)[*nr] += 0.25 * (*rp)[indice(ixp,iyp-1,y0p,y1p,x0p,x1p, nxp)] * SCALE_FACT;
+                        (*rc)[*nc] += 0.25 * (*rp)[indice(ixp,iyp-1,y0p,y1p,x0p,x1p, nxp)] * SCALE_FACT;
                     }
                     else{
                         (*rc)[*nc] += 0.25 * computeBound((ixp+1)*hp,(iyp+1 -1)*hp) * SCALE_FACT;//si fct qui calcule chaque fois :juste coord sinon
@@ -168,11 +155,11 @@ int restrictR(int level, double **rp, double **rc, int m, int *nc){
         }
     }
 
-	if (np_check != *np){
+	if (np_save != np){
 		printf("nr != n\n");
 		return 1;
 	}
-	if (nc_check != *nc){
+	if (nc_save != *nc){
 		printf("nrc != nc\n");
 		return 1;
 	}
@@ -187,11 +174,7 @@ int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u 
     //level 0
 	double h = 3.0/(double)(m-1);
     double invh2 = 1.0/(h*h);
-    /*int x1 = ((int)(COORD_X1 * (m-1)) /3)  -1; 
-    int x0 = (((int)(COORD_X0 * (m-1)) + ((3 - ((int)(COORD_X0*(m-1))%3))%3))/3)  -1;
-    int y1 = ((int)(COORD_Y1 * (m-1)) /3)  -1;
-    int y0 = (((int)(COORD_Y0 * (m-1)) + ((3 - ((int)(COORD_Y0*(m-1))%3))%3))/3)  -1;
-    */
+    
 
     int x0,x1,y0,y1;
     computeHole(&x0,&x1,&y0,&y1, m);
@@ -202,32 +185,21 @@ int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u 
     int q = x1 - x0 + 1;
     int n = nx * nx - (p * q);
     
-	//!!!! faux !
-	/*int sizeRc;
-	int mc = (m+1)/2;
-	double hc = 3.0/(mc-1);
-	int nxc = mc-2;
-	int x1c = ((int)(COORD_X1 * (mc-1)) /3)  -1; 
-    int x0c = (((int)(COORD_X0 * (mc-1)) + ((3 - ((int)(COORD_X0*(mc-1))%3))%3))/3)  -1;
-    int y1c = ((int)(COORD_Y1 * (mc-1)) /3)  -1;
-    int y0c = (((int)(COORD_Y0 * (mc-1)) + ((3 - ((int)(COORD_Y0*(mc-1))%3))%3))/3)  -1;
-    */
-	//peut pas calculer de nouveau m ou nx pour position du trou
-
+	
     //level level
 
-    double hc = h*exp(2, level);
+    double hc = h*pow(2, level);
 	double invh2c = 3.0/(hc*hc); 
 
-    int x0c = x0 / exp(2, level); // va arrondir au point grille coarse a droite 
-    int x1c = ((x1+1)/exp(2, level)) - 1; // permet si x1 pair on retire 1 
-    int y0c = (y0/exp(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1c = ((y1+1)/exp(2, level)) - 1;
+    int x0c = x0 / pow(2, level); // va arrondir au point grille coarse a droite 
+    int x1c = ((x1+1)/pow(2, level)) - 1; // permet si x1 pair on retire 1 
+    int y0c = (y0/pow(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int y1c = ((y1+1)/pow(2, level)) - 1;
     int pc = y1c - y0c + 1;
     int qc = x1c - x0c + 1;
 
-    int nxc = nx/exp(2,level); // nb de points coars sur un ligne pas bord
-    int nc_check = nxc * nxc - (pc * qc);
+    int nxc = nx/pow(2,level); // nb de points coars sur un ligne pas bord
+    int nc = nxc * nxc - (pc * qc);
     int nnzc = 5 * nxc * nxc - 4 * nxc ; 
     //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
     int trousc = (5 * (pc-2) * (qc-2) + 4 * 2 * (pc-2) + 4 * 2 * (qc-2) 
@@ -236,18 +208,18 @@ int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u 
 
     //level +1
 
-    double hp = h*exp(2, level+1);
+    double hp = h*pow(2, level+1);
 	double invh2p = 3.0/(hp*hp); 
 
-    int x0p = x0 / exp(2, level+1); // va arrondir au point grille coarse a droite 
-    int x1p = ((x1+1)/exp(2, level+1)) - 1; // permet si x1 pair on retire 1 
-    int y0p = (y0/exp(2, level+1)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1p = ((y1+1)/exp(2, level+1)) - 1;
+    int x0p = x0 / pow(2, level+1); // va arrondir au point grille coarse a droite 
+    int x1p = ((x1+1)/pow(2, level+1)) - 1; // permet si x1 pair on retire 1 
+    int y0p = (y0/pow(2, level+1)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int y1p = ((y1+1)/pow(2, level+1)) - 1;
     int pp = y1p - y0p + 1;
     int qp = x1p - x0p + 1;
 
-    int nxp = nx/exp(2,level+1); // nb de points coars sur un ligne pas bord
-    int np_check = nxp * nxp - (pp * qp);
+    int nxp = nx/pow(2,level+1); // nb de points coars sur un ligne pas bord
+    *np = nxp * nxp - (pp * qp);
     int nnzp = 5 * nxp * nxp - 4 * nxp ; 
     //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
     int trousp = (5 * (pp-2) * (qp-2) + 4 * 2 * (pp-2) + 4 * 2 * (qp-2) 
@@ -259,8 +231,12 @@ int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u 
     }
 	
 
-	int nc = 0;
+    int nc_save = nc;
+	nc = 0;
+    int np_save = *np;
 	*np = 0;
+
+
 	int ind;
 	for (int iyp = 0; iyp < nxp; iyp++){
         //passage colonne suiv
@@ -284,7 +260,7 @@ int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u 
                     }
                     //coin droit bas
                     if (check_se(ixp,iyp,y0p,y1p,x0p,x1p,nxp)){ //cond droit
-                        ind = indice((ixp/2) ,(iy/2)-1, y0c,y1c,x0c,x1c, nxc);
+                        ind = indice((ixp/2) ,(iyp/2)-1, y0c,y1c,x0c,x1c, nxc);
                         (*up)[*np] += 0.25 * (*uc)[ind];
                     }
                     else{
@@ -363,16 +339,226 @@ int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u 
             }
         }
     }
-    if (*np != np_check){
-        printf(" err np %d npcheck %d\n", np, np_check);
+    if (*np != np_save){
+        printf(" err np %d npcheck %d\n", *np, np_save);
     }
-    if (nc != nc_check){
-        printf(" err nc %d nccheck %d\n", nc, nc_check);
+    if (nc != nc_save){
+        printf(" err nc %d nccheck %d\n", nc, nc_save);
     }
 	return 0;
 }
 
 
+int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *b){
+
+    //mémoire deja allouée
+
+
+    /*
+    !!! mettre tt ce qui y a en dessous dans 1 fonction, a la tt fin seulement 
+    on optimise en enlevant le calcul redondant avec ce qui a dans computesize
+    */
+
+	//level 1 : 2grid method
+
+	//valeurs de u
+	double h = 3.0/(double)(m-1);
+    double invh2 = 1.0/(h*h);
+
+    int x0,x1,y0,y1;
+    computeHole(&x0,&x1,&y0,&y1, m);
+    
+    int nx = m-2;
+
+    int p = y1 - y0 + 1;
+    int q = x1 - x0 + 1;
+    int n = nx * nx - (p * q);
+    
+	//!!!! faux !
+	/*int sizeRc;
+	int mc = (m+1)/2;
+	double hc = 3.0/(mc-1);
+	int nxc = mc-2;
+	int x1c = ((int)(COORD_X1 * (mc-1)) /3)  -1; 
+    int x0c = (((int)(COORD_X0 * (mc-1)) + ((3 - ((int)(COORD_X0*(mc-1))%3))%3))/3)  -1;
+    int y1c = ((int)(COORD_Y1 * (mc-1)) /3)  -1;
+    int y0c = (((int)(COORD_Y0 * (mc-1)) + ((3 - ((int)(COORD_Y0*(mc-1))%3))%3))/3)  -1;
+    */
+	//peut pas calculer de nouveau m ou nx pour position du trou
+
+	double hl = h*pow(2, level);
+	double invh2l = 3.0/(hl*hl); 
+
+    int x0l = x0 / pow(2, level); // va arrondir au point grille coarse a droite 
+    int x1l = ((x1+1)/pow(2, level)) - 1; // permet si x1 pair on retire 1 
+    int y0l = (y0/pow(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int y1l = ((y1+1)/pow(2, level)) - 1;
+    int pl = y1l - y0l + 1;
+    int ql = x1l - x0l + 1;
+
+    int nxl = nx/pow(2,level); // nb de points coars sur un ligne pas bord
+    *nl = nxl * nxl - (pl * ql);
+    int nnzl = 5 * nxl * nxl - 4 * nxl ; 
+    //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
+    int trousl = (5 * (pl-2) * (ql-2) + 4 * 2 * (pl-2) + 4 * 2 * (ql-2) 
+                + 3 * 4 * 1 + 1 * 2 * pl + 1 * 2 * ql) + 2 * pl + 2 * ql;
+    nnzl -= trousl;
+
+	
+    int nnzl_save = nnzl;
+    nnzl = 0;
+    
+    //passage ligne suiv(plaque complete)
+    int ind = 0;
+    for (int iyl = 0; iyl < nxl; iyl++) { //iy ix indice sur grille hors bords  mais position (ix+1)*h
+        for (int ixl = 0; ixl < nxl; ixl++) {
+            //exclu interieur et bord du trou
+            if(! in_hole(ixl,iyl,y0l,y1l,x0l,x1l)){
+                //marquer le début de la ligne suivante dans le tableau 'ia'
+                ial[ind] = nnzl;
+                if (level == 0){
+                    b[ind] = 0;
+                }
+               
+                if (check_sud(ixl,iyl,y0l,y1l,x0l,x1l,nxl)){
+                    al[nnzl] = -invh2l;
+                    jal[nnzl] = indice(ixl,iyl-1,y0l,y1l,x0l,x1l, nxl);//ind - nx + skip_sud;
+                    
+                    //-nx car on regarde delui d'en bas(shema)
+                    //+skip_sud car comme on a passe des points(trous)
+                    // nx ramene trop loin en arrière
+                    nnzl++;
+                }
+                else{
+                    if (level ==0){
+                        b[ind] += computeBound((ixl+ 1)*hl, (iyl + 1 -1)*hl); 
+                    }
+                }
+
+                //replissage de la ligne : voisin ouest 
+                //si pas a droite d'un bord
+               
+                if (check_west(ixl,iyl,y0l,y1l,x0l,x1l,nxl)){
+                    al[nnzl] = -invh2l;
+                    jal[nnzl] = ind - 1;
+                    nnzl++;
+                }
+                else{
+                    if (level ==0){
+                        b[ind] += computeBound((ixl + 1 - 1)*hl, (iyl + 1)*hl);
+                    }
+                }
+                
+
+                // replissage de la ligne : élém. diagonal
+                al[nnzl] = 4.0*invh2l;
+                jal[nnzl] = ind;
+                
+                nnzl++;
+                
+                // replissage de la ligne : voisin est
+                //si pas a gauche d'un bord
+                
+                if ( check_est(ixl,iyl,y0l,y1l,x0l,x1l,nxl) ){
+                    al[nnzl] = -invh2l;
+                    jal[nnzl] = ind + 1;
+                    nnzl++;
+                }
+                else{
+                    if (level ==0){
+                        b[ind] += computeBound((ixl + 1 +1)*hl, (iyl + 1)*hl);
+                    }
+                }
+
+                // replissage de la ligne : voisin nord
+                //si pas en dessous d'un bord
+                
+                if ( check_nord(ixl,iyl,y0l,y1l,x0l,x1l,nxl) ){
+                        al[nnzl] = -invh2l;
+                        jal[nnzl] = indice(ixl,iyl+1,y0l,y1l,x0l,x1l, nxl);
+                        nnzl++;
+                }
+                else{
+                    if (level ==0){
+                        b[ind] += computeBound((ixl + 1)*hl, (iyl + 1 +1)*hl);
+                    }
+                }
+                // numéro de l'équation
+                ind += 1;
+                
+            }
+        }
+    }
+     if (*nl != ind){
+        printf(" err nl %d ind %d\n", *nl, ind);
+    }
+    if (nnzl != nnzl_save){
+        printf(" err nnzl %d nnzl_save %d\n", nnzl, nnzl_save);
+    }
+
+	return 0;
+}	
+
+
+int allocGridLevel(int m, int level, int *nl, int **ial,
+                     int **jal, double **al, double **bl){
+
+    double h = 3.0/(double)(m-1);
+    double invh2 = 1.0/(h*h);
+
+    int x0,x1,y0,y1;
+    computeHole(&x0,&x1,&y0,&y1, m);
+    int nx = m-2;
+    int p = y1 - y0 + 1;
+    int q = x1 - x0 + 1;
+    int n = nx * nx - (p * q);
+
+
+    double hl = h*pow(2, level);
+    double invh2l = 3.0/(hl*hl); 
+
+    int x0l = x0 / pow(2, level); // va arrondir au point grille coarse a droite 
+    int x1l = ((x1+1)/pow(2, level)) - 1; // permet si x1 pair on retire 1 
+    int y0l = (y0/pow(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int y1l = ((y1+1)/pow(2, level)) - 1;
+    int pl = y1l - y0l + 1;
+    int ql = x1l - x0l + 1;
+    int nxl = nx/pow(2,level); // nb de points coars sur un ligne pas bord
+    *nl = nxl * nxl - (pl * ql);
+    int nnzl = 5 * nxl * nxl - 4 * nxl ; 
+    //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
+    int trousl = (5 * (pl-2) * (ql-2) + 4 * 2 * (pl-2) + 4 * 2 * (ql-2) 
+                + 3 * 4 * 1 + 1 * 2 * pl + 1 * 2 * ql) + 2 * pl + 2 * ql;
+    nnzl -= trousl;
+    
+    *ial = malloc((*nl + 1) * sizeof(int));
+    *jal = malloc(nnzl * sizeof(int));
+    *al = malloc(nnzl * sizeof(double));
+
+    if (level == 0){
+        *bl = malloc(*nl * sizeof(double));
+        if (*bl == NULL ){
+            printf("\n ERREUR : pas assez de mémoire pour générer le système\n\n");
+            return 1;
+        }
+    }
+    
+    if (*ial == NULL || *jal == NULL || *al == NULL){
+        printf("\n ERREUR : pas assez de mémoire pour générer le système\n\n");
+        return 1;
+    }
+
+    
+    
+
+
+    return 0;
+}
+
+
+
+
+/*
 int returnAc(int ix, int iy, int m, int level, double h, int *ia, int *ja, double *a){
 
     //return Ac on the base of A
@@ -475,146 +661,4 @@ int returnAc(int ix, int iy, int m, int level, double h, int *ia, int *ja, doubl
 
 	return 0;
 }	
-
-int probMg(int m, int level, int *nLev, int *iaLev, int *jaLev, double *aLev, double *b){
-
-    //mémoire deja allouée
-
-
-    /*
-    !!! mettre tt ce qui y a en dessous dans 1 fonction, a la tt fin seulement 
-    on optimise en enlevant le calcul redondant avec ce qui a dans computesize
-    */
-
-	//level 1 : 2grid method
-
-	//valeurs de u
-	double h = 3.0/(double)(m-1);
-    double invh2 = 1.0/(h*h);
-
-    int x0,x1,y0,y1;
-    computeHole(&x0,&x1,&y0,&y1, m);
-    
-    int nx = m-2;
-
-    int p = y1 - y0 + 1;
-    int q = x1 - x0 + 1;
-    int n = nx * nx - (p * q);
-    
-	//!!!! faux !
-	/*int sizeRc;
-	int mc = (m+1)/2;
-	double hc = 3.0/(mc-1);
-	int nxc = mc-2;
-	int x1c = ((int)(COORD_X1 * (mc-1)) /3)  -1; 
-    int x0c = (((int)(COORD_X0 * (mc-1)) + ((3 - ((int)(COORD_X0*(mc-1))%3))%3))/3)  -1;
-    int y1c = ((int)(COORD_Y1 * (mc-1)) /3)  -1;
-    int y0c = (((int)(COORD_Y0 * (mc-1)) + ((3 - ((int)(COORD_Y0*(mc-1))%3))%3))/3)  -1;
-    */
-	//peut pas calculer de nouveau m ou nx pour position du trou
-
-	double hc = h*exp(2, level);
-	double invh2c = 3.0/(hc*hc); 
-
-    int x0c = x0 / exp(2, level); // va arrondir au point grille coarse a droite 
-    int x1c = ((x1+1)/exp(2, level)) - 1; // permet si x1 pair on retire 1 
-    int y0c = (y0/exp(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1c = ((y1+1)/exp(2, i)) - 1;
-    int pc = y1c - y0c + 1;
-    int qc = x1c - x0c + 1;
-
-    int nxc = nx/exp(2,level); // nb de points coars sur un ligne pas bord
-    *nc = nxc * nxc - (pc * qc);
-    int nnzc_check = 5 * nxc * nxc - 4 * nxc ; 
-    //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
-    int trousc = (5 * (pc-2) * (qc-2) + 4 * 2 * (pc-2) + 4 * 2 * (qc-2) 
-                + 3 * 4 * 1 + 1 * 2 * pc + 1 * 2 * qc) + 2 * pc + 2 * qc;
-    nnzc -= trousc;
-
-	
-	int nnz_save = nnz;
-    
-    //passage ligne suiv(plaque complete)
-    int ind = 0;
-    int nnzc = 0;
-    for (int iyc = 0; iyc < nxc; iyc++) { //iy ix indice sur grille hors bords  mais position (ix+1)*h
-        for (int ixc = 0; ixc < nxc; ixc++) {
-            //exclu interieur et bord du trou
-            if(! in_hole(ixc,iyc,y0c,y1c,x0c,x1c)){
-                //marquer le début de la ligne suivante dans le tableau 'ia'
-                iac[ind] = nnzc;
-               
-                if (check_sud(ixc,iyc,y0c,y1c,x0c,x1c,nxc)){
-                    ac[nnzc] = -invh2c;
-                    jac[nnzc] = indice(ixc,iyc-1,y0c,y1c,x0c,x1c, nxc);//ind - nx + skip_sud;
-                    
-                    //-nx car on regarde delui d'en bas(shema)
-                    //+skip_sud car comme on a passe des points(trous)
-                    // nx ramene trop loin en arrière
-                    nnzc++;
-                }
-                else{
-                    if (level ==0){
-                        b[ind] += computeBound((ixc+ 1)*hc, (iyc + 1 -1)*hc); 
-                    }
-                }
-
-                //replissage de la ligne : voisin ouest 
-                //si pas a droite d'un bord
-               
-                if (check_west(ixc,iyc,y0c,y1c,x0c,x1c,nxc)){
-                    ac[nnzc] = -invh2c;
-                    jac[nnzc] = ind - 1;
-                    nnzc++;
-                }
-                else{
-                    if (level ==0){
-                        b[ind] += computeBound((ixc + 1 - 1)*hc, (iyc + 1)*hc);
-                    }
-                }
-                
-
-                // replissage de la ligne : élém. diagonal
-                ac[nnzc] = 4.0*invh2c;
-                jac[nnzc] = ind;
-                
-                nnzc++;
-                
-                // replissage de la ligne : voisin est
-                //si pas a gauche d'un bord
-                
-                if ( check_est(ixc,iyc,y0c,y1c,x0c,x1c,nxc) ){
-                    ac[nnzc] = -invh2c;
-                    jac[nnzc] = ind + 1;
-                    nnzc++;
-                }
-                else{
-                    if (level ==0){
-                        b[ind] += computeBound((ixc + 1 +1)*hc, (iyc + 1)*hc);
-                    }
-                }
-
-                // replissage de la ligne : voisin nord
-                //si pas en dessous d'un bord
-                
-                if ( check_nord(ixc,iyc,y0c,y1c,x0c,x1c,nxc) ){
-                        ac[nnzc] = -invh2c;
-                        jac[nnzc] = indice(ixc,iyc+1,y0c,y1c,x0c,x1c, nxc);
-                        nnzc++;
-                }
-                else{
-                    if (level ==0){
-                        b[ind] += computeBound((ixc + 1)*hc, (iyc + 1 +1)*hc);
-                    }
-                }
-                // numéro de l'équation
-                ind += 1;
-                
-            }
-        }
-    }
-
-	return 0;
-}	
-
-
+*/
