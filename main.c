@@ -39,7 +39,7 @@ est ce qu'on peut resoudre des grilles coarse avec un b coarse est ce que ça a 
 */
 
 
-  if (probMg(m, 0, &n, ia, ja, a, b))
+  if (probMg(m, 1, &n, ia, ja, a, b))
      return 1;
   printf("\nPROBLEM: ");
   printf("m = %5d   n = %8d  nnz = %9d\n", m, n, ia[n] );

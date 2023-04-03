@@ -15,7 +15,7 @@ set zlabel 'Deplacement Max'
 
 splot 'coord_stat.dat' u 1:2:3 w l
 
-pause 2
+pause 15
 
 
 
