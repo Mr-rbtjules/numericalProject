@@ -349,7 +349,7 @@ int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u 
 }
 
 
-int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *b){
+int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *bl){
 
     //mémoire deja allouée
 
@@ -416,9 +416,8 @@ int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *b)
             if(! in_hole(ixl,iyl,y0l,y1l,x0l,x1l)){
                 //marquer le début de la ligne suivante dans le tableau 'ia'
                 ial[ind] = nnzl;
-                if (level == 0){
-                    b[ind] = 0;
-                }
+                
+                bl[ind] = 0;
                
                 if (check_sud(ixl,iyl,y0l,y1l,x0l,x1l,nxl)){
                     al[nnzl] = -invh2l;
@@ -430,9 +429,7 @@ int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *b)
                     nnzl++;
                 }
                 else{
-                    if (level ==0){
-                        b[ind] += computeBound((ixl+ 1)*hl, (iyl + 1 -1)*hl); 
-                    }
+                    bl[ind] += computeBound((ixl+ 1)*hl, (iyl + 1 -1)*hl); 
                 }
 
                 //replissage de la ligne : voisin ouest 
@@ -444,9 +441,7 @@ int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *b)
                     nnzl++;
                 }
                 else{
-                    if (level ==0){
-                        b[ind] += computeBound((ixl + 1 - 1)*hl, (iyl + 1)*hl);
-                    }
+                    bl[ind] += computeBound((ixl + 1 - 1)*hl, (iyl + 1)*hl);
                 }
                 
 
@@ -465,9 +460,7 @@ int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *b)
                     nnzl++;
                 }
                 else{
-                    if (level ==0){
-                        b[ind] += computeBound((ixl + 1 +1)*hl, (iyl + 1)*hl);
-                    }
+                    bl[ind] += computeBound((ixl + 1 +1)*hl, (iyl + 1)*hl);
                 }
 
                 // replissage de la ligne : voisin nord
@@ -479,13 +472,10 @@ int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *b)
                         nnzl++;
                 }
                 else{
-                    if (level ==0){
-                        b[ind] += computeBound((ixl + 1)*hl, (iyl + 1 +1)*hl);
-                    }
+                    bl[ind] += computeBound((ixl + 1)*hl, (iyl + 1 +1)*hl);
                 }
                 // numéro de l'équation
                 ind += 1;
-                
             }
         }
     }
@@ -494,6 +484,9 @@ int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *b)
     }
     if (nnzl != nnzl_save){
         printf(" err nnzl %d nnzl_save %d\n", nnzl, nnzl_save);
+    }
+    else {
+        ial[ind] = nnzl;
     }
 
 	return 0;
@@ -535,6 +528,14 @@ int allocGridLevel(int m, int level, int *nl, int **ial,
     *jal = malloc(nnzl * sizeof(int));
     *al = malloc(nnzl * sizeof(double));
 
+
+    *bl = malloc(*nl * sizeof(double));
+    if (*bl == NULL ){
+        printf("\n ERREUR : pas assez de mémoire pour générer le système\n\n");
+        return 1;
+    }
+
+    /*
     if (level == 0){
         *bl = malloc(*nl * sizeof(double));
         if (*bl == NULL ){
@@ -542,6 +543,7 @@ int allocGridLevel(int m, int level, int *nl, int **ial,
             return 1;
         }
     }
+    */
     
     if (*ial == NULL || *jal == NULL || *al == NULL){
         printf("\n ERREUR : pas assez de mémoire pour générer le système\n\n");
