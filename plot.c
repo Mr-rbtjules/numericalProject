@@ -50,6 +50,23 @@ void plot_static(double *x, int m, int level){
     //plaque hors bords et trous
     int n = nx * nx - (p * q);
    
+
+   /*level*/
+    double hl = h*pow(2, level);
+	double invh2l = 3.0/(hl*hl); 
+
+    int x0l = x0 / pow(2, level); // va arrondir au point grille coarse a droite 
+    int x1l = ((x1+1)/pow(2, level)) - 1; // permet si x1 pair on retire 1 
+    int y0l = (y0/pow(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int y1l = ((y1+1)/pow(2, level)) - 1;
+    int pl = y1l - y0l + 1;
+    int ql = x1l - x0l + 1;
+
+    int nxl = nx/pow(2,level); // nb de points coars sur un ligne pas bord
+    int nl = nxl * nxl - (pl * ql);
+
+    int ml = nxl+2;
+
     /*creation du ficher*/
     FILE* pointFile = NULL;                        //renvoi un pointeur pointant vers un type FILE
     const char* file_name = "coord_stat.dat";
@@ -61,19 +78,19 @@ void plot_static(double *x, int m, int level){
         /*Calcul des constantes*/
         
         int ind = 0;
-        for (int py = 0; py < m; py++){ //passage ligne suivante
-            for (int px = 0; px < m; px++){      //passage colonne suivante
+        for (int py = 0; py < ml; py++){ //passage ligne suivante
+            for (int px = 0; px < ml; px++){      //passage colonne suivante
                 
                 //si sur bord ou trou
-                if ( on_bound(px,py,m) ){
+                if ( on_bound(px,py,ml) ){
                     
-                    fprintf(pointFile, "%f %f 0\n", (px*h), py*h);
+                    fprintf(pointFile, "%.16g %.16g 0\n", (px*hl), py*hl);
                 }
-                else if ( in_hole(px-1,py-1,y0,y1,x0,x1)){
-                    fprintf(pointFile, "%f %f 0\n", (px*h), py*h);
+                else if ( in_hole(px-1,py-1,y0l,y1l,x0l,x1l)){
+                    fprintf(pointFile, "%.16g %.16g 0\n", (px*hl), py*hl);
                 }
                 else{
-                    fprintf(pointFile, "%f %f %f\n", (px*h), (py*h), x[ind]);
+                    fprintf(pointFile, "%.16g %.16g %.16g\n", (px*hl), (py*hl), x[ind]);
                     ind += 1;
                 }
             }

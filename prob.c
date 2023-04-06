@@ -352,9 +352,7 @@ void computeHole(int *x0, int *x1, int *y0, int *y1, int m){
     while ((*x0+1)*3 < COORD_X0*(m-1)){
         *x0 += 1;
     }
-    if ((*x0+1)*3 != COORD_X0*(m-1)){
-        *x0 -= 1;
-    }
+    
     //x1
     while ((*x1+1)*3 < COORD_X1*(m-1)){
         *x1 += 1;
@@ -366,9 +364,6 @@ void computeHole(int *x0, int *x1, int *y0, int *y1, int m){
     while ((*y0+1)*3 < COORD_Y0*(m-1)){
         *y0 += 1;
     }
-    if ((*y0+1)*3 != COORD_Y0*(m-1)){
-        *y0 -= 1;
-    }
     //y1
     while ((*y1+1)*3 < COORD_Y1*(m-1)){
         *y1 += 1;
@@ -376,6 +371,13 @@ void computeHole(int *x0, int *x1, int *y0, int *y1, int m){
     if ((*y1+1)*3 != COORD_Y1*(m-1)){
         *y1 -= 1;
     }
+    /*
+    if (level != 0){
+        *x0 = *x0 / pow(2, level); // va arrondir au point grille coarse a droite 
+        *x1 = ((*x1+1)/pow(2, level)) - 1; // permet si x1 pair on retire 1 
+        *y0 = (*y0/pow(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+        y1 = ((*y1+1)/pow(2, level)) - 1;
+    }*/
 }
 
 int computeRes(int n, int *ia, int *ja, double *a, double *u, double *b, double *r){

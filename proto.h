@@ -24,7 +24,7 @@ int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx);
 int on_bound(int ix, int iy, int m);
 void computeHole(int *x0, int *x1, int *y0, int *y1, int m);
 //grid_corr.c
-int restrictR(int level, double **r, double **rc, int m, int *nc);
+int restrictR(int level, double *rp, double **rc, int m, int *nc);
 int prolongR(int level, double **up, double **uc, int m, int *np);
 int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *b);
 int allocGridLevel(int m, int level, int *nl, int **ial,

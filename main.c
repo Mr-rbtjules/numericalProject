@@ -12,7 +12,10 @@ int main(int argc, char *argv[])
 
   /* déclarer les variables */
 
-  int m = 13; //  >= 13 et impaire pour la restriction et conserver distance par rapport au bords
+  int m = 26; //  >= 13 et impaire pour la restriction et conserver distance par rapport au bords
+  int level = 1; //level 1 min 26 , 2 52,3 104, level max 6-7
+ 
+  
   int n;
   int *ia = NULL;
   int *ja = NULL; 
@@ -23,23 +26,16 @@ int main(int argc, char *argv[])
 
   /* générér le problème */
 
-   //correction m adapté a notre pblm
-  while( m < 13){
-        m++;
-   }
-
+ 
 
 /*alloue la memoire ici pour les tests*/
 
-allocGridLevel(m, 0, &n, &ia, &ja, &a, &b);
-
-/*
-est ce qu'on peut resoudre des grilles coarse avec un b coarse est ce que ça a du sens ??
-
-*/
+allocGridLevel(m, level, &n, &ia, &ja, &a, &b);
 
 
-  if (probMg(m, 1, &n, ia, ja, a, b))
+
+
+  if (probMg(m, level, &n, ia, ja, a, b))
      return 1;
   printf("\nPROBLEM: ");
   printf("m = %5d   n = %8d  nnz = %9d\n", m, n, ia[n] );
@@ -62,19 +58,32 @@ est ce qu'on peut resoudre des grilles coarse avec un b coarse est ce que ça a 
   t2 = mytimer();
   printf("\nTemps de solution (CPU): %5.1f sec\n",t2-t1);
 
-   for( int i = 0; i < n; i++){
+   int plotx = 0;
+   if (plotx){
+      for( int i = 0; i < n; i++){
          printf(" %lf ", x[i]);
+      }
    }
+   
 
    //res
    double *r = malloc(n*sizeof(double));
    double rn = computeResNorm(n,ia,ja,a,x, b,r);
-   printf(" \nnorme %.10lf\n", rn);
+   printf(" \nnorme %.16g\n", rn);
+
+
+   //restrict
+   int nc;
+   double *uc;
+   restrictR(1, x, &uc, m, &nc);
+
+
+
 //plot
-   plot_static(x, m, 1);
+   plot_static(uc, 13, 0); /*check le plot pour voir si correct*/
 
-
-
+free(uc);
+   
   /* libérér la mémoire */
   free(ia); free(ja); free(a); free(b); free(x);
   return 0;

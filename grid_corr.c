@@ -20,7 +20,7 @@ remettre restr prol dans proto terminer restricr en multilevel
 - qd passe level en arg c'est tj le level auquel on est pas celui vers lequel on va
 */
 
-int restrictR(int level, double **rp, double **rc, int m, int *nc){
+int restrictR(int level, double *rp, double **rc, int m, int *nc){
     //level = 
 //ajouter mode multi
 
@@ -40,37 +40,38 @@ int restrictR(int level, double **rp, double **rc, int m, int *nc){
 
     //level level
 
-    double hc = h*pow(2, level-1);
+    double hc = h*pow(2, level);
 	double invh2c = 3.0/(hc*hc); 
 
-    int x0c = x0 / pow(2, level-1); // va arrondir au point grille coarse a droite 
-    int x1c = ((x1+1)/pow(2, level-1)) - 1; // permet si x1 pair on retire 1 
-    int y0c = (y0/pow(2, level-1)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1c = ((y1+1)/pow(2, level-1l)) - 1;
+    int x0c = x0 / pow(2, level); // va arrondir au point grille coarse a droite 
+    int x1c = ((x1+1)/pow(2, level)) - 1; // permet si x1 pair on retire 1 
+    int y0c = (y0/pow(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int y1c = ((y1+1)/pow(2, level)) - 1;
     int pc = y1c - y0c + 1;
     int qc = x1c - x0c + 1;
 
-    int nxc = nx/pow(2,level-1); // nb de points coars sur un ligne pas bord
+    int nxc = nx/pow(2,level); // nb de points coars sur un ligne pas bord
     *nc = nxc * nxc - (pc * qc);
+    printf("nxc %d\n", nxc);
     int nnzc = 5 * nxc * nxc - 4 * nxc ; 
     //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
     int trousc = (5 * (pc-2) * (qc-2) + 4 * 2 * (pc-2) + 4 * 2 * (qc-2) 
                 + 3 * 4 * 1 + 1 * 2 * pc + 1 * 2 * qc) + 2 * pc + 2 * qc;
     nnzc -= trousc;
 
-    //level +1
+    //level -1 (prolonge donc monte dans la pyramyde)
 
-    double hp = h*pow(2, level);
+    double hp = h*pow(2, level-1);
 	double invh2p = 3.0/(hp*hp); 
 
-    int x0p = x0 / pow(2, level); // va arrondir au point grille coarse a droite 
-    int x1p = ((x1+1)/pow(2, level)) - 1; // permet si x1 pair on retire 1 
-    int y0p = (y0/pow(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1p = ((y1+1)/pow(2, level)) - 1;
+    int x0p = x0 / pow(2, level-1); // va arrondir au point grille coarse a droite 
+    int x1p = ((x1+1)/pow(2, level-1)) - 1; // permet si x1 pair on retire 1 
+    int y0p = (y0/pow(2, level-1)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int y1p = ((y1+1)/pow(2, level-1)) - 1;
     int pp = y1p - y0p + 1;
     int qp = x1p - x0p + 1;
 
-    int nxp = nx/pow(2,level); // nb de points coars sur un ligne pas bord
+    int nxp = nx/pow(2,level-1); // nb de points coars sur un ligne pas bord
     int np = nxp * nxp - (pp * qp);
     int nnzp = 5 * nxp * nxp - 4 * nxp ; 
     //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
@@ -108,7 +109,7 @@ int restrictR(int level, double **rp, double **rc, int m, int *nc){
                     // + verification si pas au dessus d'un bord
                     if (check_sud(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){
                         
-                        (*rc)[*nc] += 0.25 * (*rp)[indice(ixp,iyp-1,y0p,y1p,x0p,x1p, nxp)] * SCALE_FACT;
+                        (*rc)[*nc] += 0.25 * rp[indice(ixp,iyp-1,y0p,y1p,x0p,x1p, nxp)] * SCALE_FACT;
                     }
                     else{
                         (*rc)[*nc] += 0.25 * computeBound((ixp+1)*hp,(iyp+1 -1)*hp) * SCALE_FACT;//si fct qui calcule chaque fois :juste coord sinon
@@ -117,21 +118,21 @@ int restrictR(int level, double **rp, double **rc, int m, int *nc){
                     //replissage de la ligne : voisin ouest 
                     //si pas a droite d'un bord
                     if (check_west(ixp,iyp,y0p,y1p,x0p,x1p,nxp)){
-                        (*rc)[*nc] += 0.25 * (*rp)[np - 1] * SCALE_FACT;
+                        (*rc)[*nc] += 0.25 * rp[np - 1] * SCALE_FACT;
                     }
                     else{
                         (*rc)[*nc] += 0.25 * computeBound((ixp+1-1)*hp,(iyp+1)*hp) * SCALE_FACT;
                     }
 
 
-                    (*rc)[*nc] += (*rp)[np] * SCALE_FACT;
+                    (*rc)[*nc] += rp[np] * SCALE_FACT;
                     // replissage de la ligne : élém. diagonal
                     
 
                     // replissage de la ligne : voisin est
                     //si pas a gauche d'un bord
                     if (check_est(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){
-                        (*rc)[*nc] += 0.25 * (*rp)[np + 1] * SCALE_FACT;
+                        (*rc)[*nc] += 0.25 * rp[np + 1] * SCALE_FACT;
                     }
                     else{
                         (*rc)[*nc] += 0.25 * computeBound((ixp+1+1)*hp ,(iyp+1)*hp) * SCALE_FACT;
@@ -141,7 +142,7 @@ int restrictR(int level, double **rp, double **rc, int m, int *nc){
                     //si pas en dessous d'un bord
                     if ( check_nord(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){
 
-                        (*rc)[*nc] += 0.25 * (*rp)[indice(ixp,iyp+1,y0p,y1p,x0p,x1p, nxp)] * SCALE_FACT;
+                        (*rc)[*nc] += 0.25 * rp[indice(ixp,iyp+1,y0p,y1p,x0p,x1p, nxp)] * SCALE_FACT;
                     }
                     else{
                         (*rc)[*nc] += 0.25 * computeBound((ixp+1)*hp, (iyp+1+1)*hp) * SCALE_FACT;
@@ -160,10 +161,10 @@ int restrictR(int level, double **rp, double **rc, int m, int *nc){
 		return 1;
 	}
 	if (nc_save != *nc){
-		printf("nrc != nc\n");
+		printf("nc_save %d != nc %d\n", nc_save, *nc );
 		return 1;
 	}
-
+    printf("nc_save %d = nc %d\n", nc_save, *nc );
 	return 0;
 }
 

@@ -8,11 +8,14 @@ prob                       V
 
 
 1.grid corr
---prob mg        
+-prob mg                   V        
 -restrict
+pour ça faire 2 plot un venant de probmg level 1
+et restriction de probmg level 0 
+
 -prolong
 
-
+-restr puis prol
 
 2.method
 -compute res
