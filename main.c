@@ -10,10 +10,103 @@
 int main(int argc, char *argv[])
 {
 
-  /* déclarer les variables */
+   /*
+   check si restrict -> prolong on revient a meme dim
+   */
 
+   int m2 = 26;
+   int level2 = 1;
+
+   int n2;
+   int *ia2 = NULL;
+   int *ja2 = NULL; 
+   double *a2 = NULL;
+   double *b2 = NULL;
+   double *x2 = NULL;
+   double *uc2 = NULL;
+   
+   allocGridLevel(m2, level2, &n2, &ia2, &ja2, &a2, &b2);
+   probMg(m2, level2, &n2, ia2, ja2, a2, b2);
+
+   x2 = malloc(n2 * sizeof(double));
+   
+   solve_umfpack(n2, ia2, ja2, a2, b2, x2);
+   double *r2 = malloc(n2*sizeof(double));
+   double rn2 = computeResNorm(n2,ia2,ja2,a2,x2, b2,r2);
+   printf(" \nnorme résidu r:%.16g\n", rn2);
+   free(r2);
+
+   /*printf("base :\n");
+   for( int i = 0; i < n2; i++){
+         printf(" %lf ", x2[i]);
+   }*/
+   //plot_static(x2, m2, level2);
+
+   /*
+   int nc2;
+   restrictR(level2, x2, &uc2, m2, &nc2);
+   */
+   /*printf("restricted :\n");
+   for( int i = 0; i < nc2; i++){
+         printf(" %lf ", uc2[i]);
+   }*/
+   //plot_static(uc2, m2, level2+1);
+
+
+   //plot
+   
+   double *up = NULL;
+   int np;
+   prolongR(level2, &up, x2, m2, &np);
+
+   /*
+   
+
+   */
+
+   
+   printf("prolonged :\n");
+   for( int i = 0; i < np; i++){
+         printf(" %lf ", up[i]);
+   }
+   printf("\n");
+   plot_static(up, m2, 0);
+
+
+   int m1 = m2;
+   int level1 = 0;
+
+   int n1;
+   int *ia1 = NULL;
+   int *ja1 = NULL; 
+   double *a1 = NULL;
+   double *b1 = NULL;
+   
+   allocGridLevel(m1, level1, &n1, &ia1, &ja1, &a1, &b1);
+   probMg(m1, level1, &n1, ia1, ja1, a1, b1);
+
+   double *r3 = malloc(n1*sizeof(double));
+   double rn3 = computeResNorm(n1,ia1,ja1,a1,up, b1,r3);
+   printf(" \nnorme résidu r:%.16g\n", rn3);
+   free(r3);
+
+
+
+   free(up);
+
+   free(uc2);
+ free(ia2);
+  free(ja2); 
+  free(a2);
+   free(b2); 
+   free(x2);
+
+
+/*
   int m = 26; //  >= 13 et impaire pour la restriction et conserver distance par rapport au bords
   int level = 1; //level 1 min 26 , 2 52,3 104, level max 6-7
+ 
+
  
   
   int n;
@@ -24,11 +117,9 @@ int main(int argc, char *argv[])
   double *x = NULL;
   double t1, t2;
 
-  /* générér le problème */
 
  
 
-/*alloue la memoire ici pour les tests*/
 
 allocGridLevel(m, level, &n, &ia, &ja, &a, &b);
 
@@ -42,7 +133,6 @@ allocGridLevel(m, level, &n, &ia, &ja, &a, &b);
    
 
    
-  /* allouer la mémoire pour le vecteur de solution */
 
   x = malloc(n * sizeof(double));
   if ( x == NULL ) {
@@ -50,7 +140,6 @@ allocGridLevel(m, level, &n, &ia, &ja, &a, &b);
         return 1;
   }
 
-  /* résoudre et mesurer le temps de solution */
 
   t1 = mytimer();
   if( solve_umfpack(n, ia, ja, a, b, x) )
@@ -58,34 +147,55 @@ allocGridLevel(m, level, &n, &ia, &ja, &a, &b);
   t2 = mytimer();
   printf("\nTemps de solution (CPU): %5.1f sec\n",t2-t1);
 
-   int plotx = 0;
+
+   int plotx = 1;
    if (plotx){
       for( int i = 0; i < n; i++){
          printf(" %lf ", x[i]);
       }
    }
-   
 
+   int n2;
+  int *ia2 = NULL;
+  int *ja2 = NULL; 
+  double *a2 = NULL;
+  double *b2 = NULL;
+  double *x2 = NULL;
+
+
+ 
+
+
+allocGridLevel(m, 0, &n2, &ia2, &ja2, &a2, &b2);
+
+
+
+
+  if (probMg(m, 0, &n2, ia2, ja2, a2, b2))
+     return 1;
+  printf("\nPROBLEM to coarse: ");
+  printf("m = %5d   n = %8d  nnz = %9d\n", m, n2, ia2[n2] );
+
+   int nc;  
+   double *uc;
+   restrictR(1, x, &uc, m, &nc);
    //res
    double *r = malloc(n*sizeof(double));
    double rn = computeResNorm(n,ia,ja,a,x, b,r);
-   printf(" \nnorme %.16g\n", rn);
+   printf(" \nnorme résidu:%.16g\n", rn);
 
 
-   //restrict
-   int nc;
-   double *uc;
-   restrictR(1, x, &uc, m, &nc);
+   
 
 
 
 //plot
-   plot_static(uc, 13, 0); /*check le plot pour voir si correct*/
+   plot_static(uc, 13, 0);
 
 free(uc);
    
-  /* libérér la mémoire */
   free(ia); free(ja); free(a); free(b); free(x);
+  */
   return 0;
 }
 

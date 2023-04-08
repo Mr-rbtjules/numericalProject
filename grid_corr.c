@@ -21,8 +21,7 @@ remettre restr prol dans proto terminer restricr en multilevel
 */
 
 int restrictR(int level, double *rp, double **rc, int m, int *nc){
-    //level = 
-//ajouter mode multi
+    //level = 0 = ou on est ->1
 
     //level 0
 	double h = 3.0/(double)(m-1);
@@ -38,40 +37,19 @@ int restrictR(int level, double *rp, double **rc, int m, int *nc){
     int q = x1 - x0 + 1;
     int n = nx * nx - (p * q);
 
-    //level level
-
-    double hc = h*pow(2, level);
-	double invh2c = 3.0/(hc*hc); 
-
-    int x0c = x0 / pow(2, level); // va arrondir au point grille coarse a droite 
-    int x1c = ((x1+1)/pow(2, level)) - 1; // permet si x1 pair on retire 1 
-    int y0c = (y0/pow(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1c = ((y1+1)/pow(2, level)) - 1;
-    int pc = y1c - y0c + 1;
-    int qc = x1c - x0c + 1;
-
-    int nxc = nx/pow(2,level); // nb de points coars sur un ligne pas bord
-    *nc = nxc * nxc - (pc * qc);
-    printf("nxc %d\n", nxc);
-    int nnzc = 5 * nxc * nxc - 4 * nxc ; 
-    //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
-    int trousc = (5 * (pc-2) * (qc-2) + 4 * 2 * (pc-2) + 4 * 2 * (qc-2) 
-                + 3 * 4 * 1 + 1 * 2 * pc + 1 * 2 * qc) + 2 * pc + 2 * qc;
-    nnzc -= trousc;
-
     //level -1 (prolonge donc monte dans la pyramyde)
 
-    double hp = h*pow(2, level-1);
+    double hp = h*pow(2, level);
 	double invh2p = 3.0/(hp*hp); 
 
-    int x0p = x0 / pow(2, level-1); // va arrondir au point grille coarse a droite 
-    int x1p = ((x1+1)/pow(2, level-1)) - 1; // permet si x1 pair on retire 1 
-    int y0p = (y0/pow(2, level-1)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1p = ((y1+1)/pow(2, level-1)) - 1;
+    int x0p = x0 / pow(2, level); // va arrondir au point grille coarse a droite 
+    int x1p = ((x1+1)/pow(2, level)) - 1; // permet si x1 pair on retire 1 
+    int y0p = (y0/pow(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int y1p = ((y1+1)/pow(2, level)) - 1;
     int pp = y1p - y0p + 1;
     int qp = x1p - x0p + 1;
 
-    int nxp = nx/pow(2,level-1); // nb de points coars sur un ligne pas bord
+    int nxp = nx/pow(2,level); // nb de points coars sur un ligne pas bord
     int np = nxp * nxp - (pp * qp);
     int nnzp = 5 * nxp * nxp - 4 * nxp ; 
     //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
@@ -80,19 +58,37 @@ int restrictR(int level, double *rp, double **rc, int m, int *nc){
     nnzp -= trousp;
 
 
+    //level ou on va =level+1
+
+    double hc = h*pow(2, level+1);
+	double invh2c = 3.0/(hc*hc); 
+
+    int x0c = x0 / pow(2, level+1); // va arrondir au point grille coarse a droite 
+    int x1c = ((x1+1)/pow(2, level+1)) - 1; // permet si x1 pair on retire 1 
+    int y0c = (y0/pow(2, level+1)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int y1c = ((y1+1)/pow(2, level+1)) - 1;
+    int pc = y1c - y0c + 1;
+    int qc = x1c - x0c + 1;
+
+    int nxc = nx/pow(2,level+1); // nb de points coars sur un ligne pas bord
+    *nc = nxc * nxc - (pc * qc);
+    int nnzc = 5 * nxc * nxc - 4 * nxc ; 
+    //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
+    int trousc = (5 * (pc-2) * (qc-2) + 4 * 2 * (pc-2) + 4 * 2 * (qc-2) 
+                + 3 * 4 * 1 + 1 * 2 * pc + 1 * 2 * qc) + 2 * pc + 2 * qc;
+    nnzc -= trousc;
+
+
 
     if (*rc == NULL){
-        *rc = malloc(*nc * sizeof(double));
+        *rc = calloc(*nc ,sizeof(double));
     }
-	
-
 	
 
     int np_save = np;
 	np = 0;
     int nc_save = *nc;
 	*nc = 0;
-
 
 	for (int iyp = 0; iyp < nxp; iyp++){
         //passage colonne suiv
@@ -107,35 +103,45 @@ int restrictR(int level, double *rp, double **rc, int m, int *nc){
                     //marquer le début de la ligne suivante dans le tableau 'ia'            
                     //replissage de la ligne : voisin sud //ui-1
                     // + verification si pas au dessus d'un bord
+                    
                     if (check_sud(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){
-                        
-                        (*rc)[*nc] += 0.25 * rp[indice(ixp,iyp-1,y0p,y1p,x0p,x1p, nxp)] * SCALE_FACT;
-                    }
+                        int ind = indice(ixp,iyp-1,y0p,y1p,x0p,x1p, nxp);
+                        (*rc)[*nc] += 0.25 * rp[ind] * SCALE_FACT;
+                    }    
+
                     else{
+                        //(*rc)[*nc] += 0.25 * rp[np] * SCALE_FACT; 
                         (*rc)[*nc] += 0.25 * computeBound((ixp+1)*hp,(iyp+1 -1)*hp) * SCALE_FACT;//si fct qui calcule chaque fois :juste coord sinon
                     }
 
                     //replissage de la ligne : voisin ouest 
                     //si pas a droite d'un bord
                     if (check_west(ixp,iyp,y0p,y1p,x0p,x1p,nxp)){
-                        (*rc)[*nc] += 0.25 * rp[np - 1] * SCALE_FACT;
+                        int ind = np -1;
+                        (*rc)[*nc] += 0.25 * rp[ind] * SCALE_FACT;
                     }
                     else{
+                        //(*rc)[*nc] += 0.25 * rp[np] * SCALE_FACT;
                         (*rc)[*nc] += 0.25 * computeBound((ixp+1-1)*hp,(iyp+1)*hp) * SCALE_FACT;
                     }
 
-
-                    (*rc)[*nc] += rp[np] * SCALE_FACT;
+                    int ind = np;
+                    (*rc)[*nc] += rp[ind] * SCALE_FACT;
+                   
                     // replissage de la ligne : élém. diagonal
                     
 
                     // replissage de la ligne : voisin est
                     //si pas a gauche d'un bord
                     if (check_est(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){
-                        (*rc)[*nc] += 0.25 * rp[np + 1] * SCALE_FACT;
+                        int ind = np +1;
+                        (*rc)[*nc] += 0.25 * rp[ind] * SCALE_FACT;
+                         
                     }
                     else{
+                        //(*rc)[*nc] += 0.25 * rp[np] * SCALE_FACT;
                         (*rc)[*nc] += 0.25 * computeBound((ixp+1+1)*hp ,(iyp+1)*hp) * SCALE_FACT;
+                        
                     }
 
                     // replissage de la ligne : voisin nord
@@ -145,9 +151,11 @@ int restrictR(int level, double *rp, double **rc, int m, int *nc){
                         (*rc)[*nc] += 0.25 * rp[indice(ixp,iyp+1,y0p,y1p,x0p,x1p, nxp)] * SCALE_FACT;
                     }
                     else{
+                        //(*rc)[*nc] += 0.25 * rp[np] * SCALE_FACT;
                         (*rc)[*nc] += 0.25 * computeBound((ixp+1)*hp, (iyp+1+1)*hp) * SCALE_FACT;
                     }
                     // numéro de l'équation
+                    
                     *nc += 1;
                 
                 }
@@ -160,17 +168,24 @@ int restrictR(int level, double *rp, double **rc, int m, int *nc){
 		printf("nr != n\n");
 		return 1;
 	}
-	if (nc_save != *nc){
+	else if (nc_save != *nc){
 		printf("nc_save %d != nc %d\n", nc_save, *nc );
 		return 1;
 	}
-    printf("nc_save %d = nc %d\n", nc_save, *nc );
+    else {
+        printf("restrict : hp = %lf np = %d nnzp = %d nxp = %d \n", hp, np, nnzp, nxp);
+        printf("x0p = %d x1p = %d y0p = %d y1p = %d \n", x0p, x1p, y0p, y1p);
+
+        printf("and hc = %lf nc = %d nnzc = %d nxc = %d \n", hc, *nc, nnzc, nxc);
+        printf("x0c = %d x1c = %d y0c = %d y1c = %d \n", x0c, x1c, y0c, y1c);
+
+    }
 	return 0;
 }
 
 
-int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u pas de uc !
-
+int prolongR(int level, double **up, double *uc, int m, int *np){ //ici m de u pas de uc !
+    //level 1 = on ou on est -> 0
 
     //level 0
 	double h = 3.0/(double)(m-1);
@@ -207,19 +222,19 @@ int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u 
                 + 3 * 4 * 1 + 1 * 2 * pc + 1 * 2 * qc) + 2 * pc + 2 * qc;
     nnzc -= trousc;
 
-    //level +1
+    //level -1 car on remonte dans la pyr inv
 
-    double hp = h*pow(2, level+1);
+    double hp = h*pow(2, level-1);
 	double invh2p = 3.0/(hp*hp); 
 
-    int x0p = x0 / pow(2, level+1); // va arrondir au point grille coarse a droite 
-    int x1p = ((x1+1)/pow(2, level+1)) - 1; // permet si x1 pair on retire 1 
-    int y0p = (y0/pow(2, level+1)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1p = ((y1+1)/pow(2, level+1)) - 1;
+    int x0p = x0 / pow(2, level-1); // va arrondir au point grille coarse a droite 
+    int x1p = ((x1+1)/pow(2, level-1)) - 1; // permet si x1 pair on retire 1 
+    int y0p = (y0/pow(2, level-1)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    int y1p = ((y1+1)/pow(2, level-1)) - 1;
     int pp = y1p - y0p + 1;
     int qp = x1p - x0p + 1;
 
-    int nxp = nx/pow(2,level+1); // nb de points coars sur un ligne pas bord
+    int nxp = nx/pow(2,level-1); // nb de points coars sur un ligne pas bord
     *np = nxp * nxp - (pp * qp);
     int nnzp = 5 * nxp * nxp - 4 * nxp ; 
     //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
@@ -228,7 +243,7 @@ int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u 
     nnzp -= trousp;
 
     if (*up == NULL){
-        *up = malloc(*np * sizeof(double));
+        *up = calloc(*np , sizeof(double));
     }
 	
 
@@ -247,22 +262,38 @@ int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u 
             if(! in_hole(ixp,iyp,y0p,y1p,x0p,x1p)){
                 
 				//impair impair -> 1/4 somme des 4 autour
-                if (iyp % 2 == 0 && ixp % 2 == 0){
+                
+                //surevaluation d'origine inconnue pour la cat si dessous
+                // et qd bord a gauche car peut pas etre plus grand que le + grand des 4
+                if (iyp % 2 == 0 && ixp % 2 == 0){ 
                     //check si bord est bien la ou pense etre pour uc (pas faire une recherche alors que bord)
                     //somme coin gauche bas 
                     //check si point prol pas ds le trou
+                    if (ixp ==0 && iyp == 0){
+                        printf("check %d\n", check_sw(ixp,iyp,y0p,y1p,x0p,x1p,nxp));
+                        }
                     if (check_sw(ixp,iyp,y0p,y1p,x0p,x1p,nxp)){ // question est ce que prolong peut etre domaine et coarse ds un board ? non ca depend que de p
-                        
+                        if (ixp ==0){
+                        printf("ici ?? \n");
+                        }
 						ind = indice((ixp/2) - 1, (iyp/2)-1, y0c,y1c,x0c,x1c, nxc);//juste /2 -1 car point prol au milieu des 4 tjrs pair
-                        (*up)[*np] += 0.25 * (*uc)[ind]; 
+                        (*up)[*np] += 0.25 * uc[ind]; 
                     }
                     else{
-                        (*up)[*np] += 0.25 * computeBound((ixp+1-1)*hp,(iyp+1-1)*hp);
+                        double bound = computeBound((ixp+1-1)*hp,(iyp+1-1)*hp);
+                        
+                        (*up)[*np] += 0.25 * bound;
+                        if (ixp ==0){
+                        printf("bord sw %lf\n", bound);
+                        }
                     }
                     //coin droit bas
                     if (check_se(ixp,iyp,y0p,y1p,x0p,x1p,nxp)){ //cond droit
                         ind = indice((ixp/2) ,(iyp/2)-1, y0c,y1c,x0c,x1c, nxc);
-                        (*up)[*np] += 0.25 * (*uc)[ind];
+                        (*up)[*np] += 0.25 * uc[ind];
+                        if (ixp ==0){
+                            printf("bord se %lf\n", uc[ind]);
+                        }
                     }
                     else{
                         (*up)[*np] += 0.25 * computeBound((ixp+1+1)*hp,(iyp+1-1)*hp);
@@ -270,16 +301,25 @@ int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u 
                     //coin haut gauche
                     if (check_nw(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){ //cond gauche haut
                         ind = indice((ixp/2 - 1),(iyp/2), y0c,y1c,x0c,x1c, nxc);
-                        (*up)[*np] += 0.25 * (*uc)[ind];
+                        (*up)[*np] += 0.25 * uc[ind];
                     }
                     else{
-                        (*up)[*np] += 0.25 * computeBound((ixp+1-1)*hp,(iyp + 1+1)*hp);
+                        double bound = computeBound((ixp+1-1)*hp,(iyp + 1+1)*hp);
+                        (*up)[*np] += 0.25 * bound;
+                        if (ixp ==0){
+                            printf("bord nw %lf\n", bound);
+                        }
                     }
                     //coin droit haut
                     
-                    if (check_ne(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){ //cond droit
+                    if (check_ne(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){ //coin droit
                         ind = indice((ixp/2),(iyp/2), y0c,y1c,x0c,x1c, nxc);
-                        (*up)[*np] += 0.25 * (*uc)[ind];
+                        (*up)[*np] += 0.25 * uc[ind];
+
+                        if (ixp ==0){
+                            printf("bord ne %lf\n", uc[ind]);
+                        }
+                        
                     }
                     else{
                         (*up)[*np] += 0.25 * computeBound((ixp+1+1)*hp,(iyp+1+1)*hp);
@@ -293,7 +333,7 @@ int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u 
                     if (check_sud(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){
                        
                         ind = indice((ixp/2),(iyp/2)-1, y0c,y1c,x0c,x1c, nxc);
-                        (*up)[*np] += 0.5 * (*uc)[ind];
+                        (*up)[*np] += 0.5 * uc[ind];
                     }
                     else{
                         (*up)[*np] += 0.5 * computeBound((ixp+1)*hp,(iyp+1-1)*hp);
@@ -301,7 +341,7 @@ int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u 
                     //somme haut
                     if(check_nord(ixp,iyp,y0p,y1p,x0p,x1p,nxp)){
                         ind = indice((ixp/2),(iyp/2), y0c,y1c,x0c,x1c, nxc);
-                        (*up)[*np] += 0.5 * (*uc)[ind]; //pas de nx/2+1 car point uc[nc] deja ligne du haut
+                        (*up)[*np] += 0.5 * uc[ind]; //pas de nx/2+1 car point uc[nc] deja ligne du haut
                     }
                     else{
                         (*up)[*np] += 0.5 * computeBound((ixp+1)*hp,(iyp+1+1)*hp);
@@ -313,7 +353,7 @@ int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u 
                     //somme gauche
                     //si pas a droite d'un bord
                     if (check_west(ixp,iyp,y0p,y1p,x0p,x1p,nxp)){
-                        (*up)[*np] += 0.5 * (*uc)[nc - 1];
+                        (*up)[*np] += 0.5 * uc[nc - 1];
                     }
                     else{
                         (*up)[*np] += 0.5 * computeBound((ixp+1-1)*hp,(iyp+1)*hp);
@@ -322,7 +362,7 @@ int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u 
                     //somme droit
                     //si pas a gauche d'un bord
                     if (check_est(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){
-                        (*up)[*np] += 0.5 * (*uc)[nc]; //nc car deja +1 car type point precedent + 1
+                        (*up)[*np] += 0.5 * uc[nc]; //nc car deja +1 car type point precedent + 1
                     }
                     else{
                         (*up)[*np] += 0.5 * computeBound((ixp+1+1)*hp,(iyp+1)*hp);
@@ -331,11 +371,10 @@ int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u 
                 //ligne impair  & col impair => elem identique
                 else if (iyp % 2 == 1 && ixp % 2 == 1){  //pour 1 meme ligne alterne entre type 1 et 2, commence par 1 finis par 1
 
-                    (*up)[*np] = (*uc)[nc];
+                    (*up)[*np] = uc[nc];
                     nc += 1;       //=> 2 choses, pr point type 2 droite = nc gauche == nc-1
                     // et aussi que pour type 3 et 4 nc rpz point au dessus tt a gauche
                 }
-                
                 *np += 1;
             }
         }
@@ -343,8 +382,16 @@ int prolongR(int level, double **up, double **uc, int m, int *np){ //ici m de u 
     if (*np != np_save){
         printf(" err np %d npcheck %d\n", *np, np_save);
     }
-    if (nc != nc_save){
+    else if (nc != nc_save){
         printf(" err nc %d nccheck %d\n", nc, nc_save);
+    }
+    else {
+        printf("\n prolong : hp = %lf np = %d nnzp = %d nxp = %d \n", hp, *np, nnzp, nxp);
+        printf(" x0p = %d x1p = %d y0p = %d y1p = %d \n", x0p, x1p, y0p, y1p);
+
+        printf("\nand hc = %lf nc = %d nnzc = %d nxc = %d \n", hc, nc, nnzc, nxc);
+        printf("x0c = %d x1c = %d y0c = %d y1c = %d \n", x0c, x1c, y0c, y1c);
+
     }
 	return 0;
 }
@@ -430,7 +477,7 @@ int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *bl
                     nnzl++;
                 }
                 else{
-                    bl[ind] += computeBound((ixl+ 1)*hl, (iyl + 1 -1)*hl); 
+                    bl[ind] += computeBound((ixl+ 1)*hl, (iyl + 1 -1)*hl) * invh2l; 
                 }
 
                 //replissage de la ligne : voisin ouest 
@@ -442,7 +489,7 @@ int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *bl
                     nnzl++;
                 }
                 else{
-                    bl[ind] += computeBound((ixl + 1 - 1)*hl, (iyl + 1)*hl);
+                    bl[ind] += computeBound((ixl + 1 - 1)*hl, (iyl + 1)*hl) * invh2l;
                 }
                 
 
@@ -461,7 +508,7 @@ int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *bl
                     nnzl++;
                 }
                 else{
-                    bl[ind] += computeBound((ixl + 1 +1)*hl, (iyl + 1)*hl);
+                    bl[ind] += computeBound((ixl + 1 +1)*hl, (iyl + 1)*hl) * invh2l;
                 }
 
                 // replissage de la ligne : voisin nord
@@ -473,21 +520,25 @@ int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *bl
                         nnzl++;
                 }
                 else{
-                    bl[ind] += computeBound((ixl + 1)*hl, (iyl + 1 +1)*hl);
+                    bl[ind] += computeBound((ixl + 1)*hl, (iyl + 1 +1)*hl) * invh2l;
                 }
                 // numéro de l'équation
                 ind += 1;
             }
         }
     }
+
      if (*nl != ind){
         printf(" err nl %d ind %d\n", *nl, ind);
     }
-    if (nnzl != nnzl_save){
+    else if (nnzl != nnzl_save){
         printf(" err nnzl %d nnzl_save %d\n", nnzl, nnzl_save);
     }
     else {
         ial[ind] = nnzl;
+        printf("\n ProbMg : hl = %lf nl = %d nnzl = %d nxl = %d \n", hl, ind, nnzl, nxl);
+        printf("x0l = %d x1l = %d y0l = %d y1l = %d \n", x0l, x1l, y0l, y1l);
+
     }
 
 	return 0;
@@ -536,22 +587,16 @@ int allocGridLevel(int m, int level, int *nl, int **ial,
         return 1;
     }
 
-    /*
-    if (level == 0){
-        *bl = malloc(*nl * sizeof(double));
-        if (*bl == NULL ){
-            printf("\n ERREUR : pas assez de mémoire pour générer le système\n\n");
-            return 1;
-        }
-    }
-    */
+    
     
     if (*ial == NULL || *jal == NULL || *al == NULL){
         printf("\n ERREUR : pas assez de mémoire pour générer le système\n\n");
         return 1;
     }
 
-    
+    printf("\n Allow : hl = %lf nl = %d nnzl = %d nxl = %d \n", hl, *nl, nnzl, nxl);
+        printf("x0l = %d x1l = %d y0l = %d y1l = %d \n", x0l, x1l, y0l, y1l);
+
     
 
 

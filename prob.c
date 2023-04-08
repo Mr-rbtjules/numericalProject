@@ -17,6 +17,7 @@
 
 
 double computeBound(double x, double y){
+    
     return exp(sqrt(x*x + y*y));
 }
 
@@ -55,10 +56,14 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
 
 */
 {
+    
+    /*Le pblm est ici malheureusement u de probmg depend de m alors que devrait pas ?
+    pq bonne forme mais pas bonne intensité ?s*/
+    
+    
+    
     int  ix, iy, ind = 0;
     
-    
-
     double h = 3.0/(double)(m-1);
     double invh2 = 1.0/(h*h);
 
@@ -272,11 +277,11 @@ int check_est(int ix, int iy, int y0, int y1, int x0, int x1, int nx){
 		return 0;
 	}
 }
-int check_nw(int ixc, int iyc, int y0, int y1, int x0, int x1, int nx){
+int check_nw(int ixp, int iyp, int y0p, int y1p, int x0p, int x1p, int nxp){
     
-	int ix = (2*ixc) + 1 - 1;//ind point nw sur la grille prolong 
-    int iy = (2*iyc) + 1 + 1;
-    if (ix >= 0 && iy < nx && ! in_hole(ix, iy, y0,y1,x0,x1)){
+	int ixnw = ixp - 1;//ind point nw sur la grille prolong 
+    int iynw = iyp + 1;
+    if (ixnw >= 0 && iynw < nxp && ! in_hole(ixnw, iynw, y0p,y1p,x0p,x1p)){
 		return 1;
 	}
 	else{
@@ -284,11 +289,11 @@ int check_nw(int ixc, int iyc, int y0, int y1, int x0, int x1, int nx){
 	}
 }
 
-int check_ne(int ixc, int iyc, int y0, int y1, int x0, int x1, int nx){
+int check_ne(int ixp, int iyp, int y0p, int y1p, int x0p, int x1p, int nxp){
     
-	int ix = (2*ixc) + 1 + 1;//ind point nw sur la grille prolong 
-    int iy = (2*iyc) + 1 + 1;
-    if (ix < nx && iy < nx && ! in_hole(ix, iy, y0,y1,x0,x1)){
+	int ixne =  ixp + 1;//ind point sw sur la grille prolong 
+    int iyne = iyp + 1;
+    if (ixne < nxp && iyne < nxp && ! in_hole(ixne, iyne, y0p,y1p,x0p,x1p)){
 		return 1;
 	}
 	else{
@@ -296,11 +301,11 @@ int check_ne(int ixc, int iyc, int y0, int y1, int x0, int x1, int nx){
 	}
 }
 
-int check_sw(int ix, int iy, int y0, int y1, int x0, int x1, int nx){
-    
-	int ixsw =  ix - 1;//ind point nw sur la grille prolong 
-    int iysw = iy - 1;
-    if (ix >= 0 && iy >=0 && ! in_hole(ixsw, iysw, y0,y1,x0,x1)){
+int check_sw(int ixp, int iyp, int y0p, int y1p, int x0p, int x1p, int nxp){
+    //return 1/true lrsque point de la grille prolongé fait partie des variable
+	int ixsw =  ixp - 1;//ind point sw sur la grille prolong 
+    int iysw = iyp - 1;
+    if (ixsw >= 0 && iysw >=0 && ! in_hole(ixsw, iysw, y0p,y1p,x0p,x1p)){
 		return 1;
 	}
 	else{
@@ -308,11 +313,11 @@ int check_sw(int ix, int iy, int y0, int y1, int x0, int x1, int nx){
 	}
 }
 
-int check_se(int ixc, int iyc, int y0, int y1, int x0, int x1, int nx){
+int check_se(int ixp, int iyp, int y0p, int y1p, int x0p, int x1p, int nxp){
     
-	int ix = (2*ixc) + 1 + 1;//ind point nw sur la grille prolong 
-    int iy = (2*iyc) + 1 - 1;
-    if (ix < nx && iy >= 0 && ! in_hole(ix, iy, y0,y1,x0,x1)){
+	int ixse =  ixp+1;//ind point nw sur la grille prolong 
+    int iyse = iyp - 1;
+    if (ixse < nxp && iyse >= 0 && ! in_hole(ixse, iyse, y0p,y1p,x0p,x1p)){
 		return 1;
 	}
 	else{

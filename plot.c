@@ -17,6 +17,12 @@ int add_plot(double *x, int n){
 
 void plot_static(double *x, int m, int level){
 
+
+
+ /*ajouter fonctionnalité ou trou en couleur diff*/
+
+
+
     /*cree un fichier texte (.dat pour gnuplot) contenant 2 colonnes
     avec les coordonnées x et y et une colonnes avec les éléments de u (bord et trous compris avec u = 0)
     et lance le script gnuplot pour plot le resultat (nmp = numero de mode propre)
@@ -82,12 +88,11 @@ void plot_static(double *x, int m, int level){
             for (int px = 0; px < ml; px++){      //passage colonne suivante
                 
                 //si sur bord ou trou
-                if ( on_bound(px,py,ml) ){
+                if ( on_bound(px,py,ml) ||  in_hole(px-1,py-1,y0l,y1l,x0l,x1l) ){
                     
-                    fprintf(pointFile, "%.16g %.16g 0\n", (px*hl), py*hl);
-                }
-                else if ( in_hole(px-1,py-1,y0l,y1l,x0l,x1l)){
-                    fprintf(pointFile, "%.16g %.16g 0\n", (px*hl), py*hl);
+
+                    //fprintf(pointFile, "%.16g %.16g 0\n", px*hl, py*hl);
+                    fprintf(pointFile, "%.16g %.16g %.16g\n", px*hl, py*hl, computeBound(px*hl, py*hl));
                 }
                 else{
                     fprintf(pointFile, "%.16g %.16g %.16g\n", (px*hl), (py*hl), x[ind]);
