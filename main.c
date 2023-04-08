@@ -14,8 +14,8 @@ int main(int argc, char *argv[])
    check si restrict -> prolong on revient a meme dim
    */
 
-   int m2 = 26;
-   int level2 = 1;
+   int m2 = 100;
+   int level2 = 2;
 
    int n2;
    int *ia2 = NULL;
@@ -70,11 +70,11 @@ int main(int argc, char *argv[])
          printf(" %lf ", up[i]);
    }
    printf("\n");
-   plot_static(up, m2, 0);
+   plot_static(up, m2, 1);
 
 
    int m1 = m2;
-   int level1 = 0;
+   int level1 = 1;
 
    int n1;
    int *ia1 = NULL;
