@@ -5,12 +5,6 @@
 
 
 #define SCALE_FACT 0.5
-/*
-remettre restr prol dans proto terminer restricr en multilevel
-
-
-
-*/
 
 
 
@@ -23,65 +17,31 @@ remettre restr prol dans proto terminer restricr en multilevel
 int restrictR(int level, double *rp, double **rc, int m, int *nc){
     //level = 0 = ou on est ->1
 
-    //level 0
-	double h = 3.0/(double)(m-1);
-    double invh2 = 1.0/(h*h);
-    
-
-    int x0,x1,y0,y1;
-    computeHole(&x0,&x1,&y0,&y1, m);
-
-    int nx = m-2;
-
-    int p = y1 - y0 + 1;
-    int q = x1 - x0 + 1;
-    int n = nx * nx - (p * q);
+    //level 0(calculer dans computeparamlevel)
+	
 
     //level -1 (prolonge donc monte dans la pyramyde)
+    double hp, invh2p;
+    int x0p,x1p,y0p,y1p, nxp, np, nnzp;
+    computeParamLevel(m, level, &hp,&invh2p,&y0p,&y1p,&x0p,&x1p,&nxp, &np, &nnzp);
+    
+    printf("\n restrict level : hp = %lf np = %d nnzp = %d nxp = %d \n", hp, np, nnzp, nxp);
+    printf("x0p = %d x1p = %d y0p = %d y1p = %d \n", x0p, x1p, y0p, y1p);
 
-    double hp = h*pow(2, level);
-	double invh2p = 3.0/(hp*hp); 
-
-    int x0p = x0 / pow(2, level); // va arrondir au point grille coarse a droite 
-    int x1p = ((x1+1)/pow(2, level)) - 1; // permet si x1 pair on retire 1 
-    int y0p = (y0/pow(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1p = ((y1+1)/pow(2, level)) - 1;
-    int pp = y1p - y0p + 1;
-    int qp = x1p - x0p + 1;
-
-    int nxp = nx/pow(2,level); // nb de points coars sur un ligne pas bord
-    int np = nxp * nxp - (pp * qp);
-    int nnzp = 5 * nxp * nxp - 4 * nxp ; 
-    //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
-    int trousp = (5 * (pp-2) * (qp-2) + 4 * 2 * (pp-2) + 4 * 2 * (qp-2) 
-                + 3 * 4 * 1 + 1 * 2 * pp + 1 * 2 * qp) + 2 * pp + 2 * qp;
-    nnzp -= trousp;
-
+    
+   
 
     //level ou on va =level+1
-
-    double hc = h*pow(2, level+1);
-	double invh2c = 3.0/(hc*hc); 
-
-    int x0c = x0 / pow(2, level+1); // va arrondir au point grille coarse a droite 
-    int x1c = ((x1+1)/pow(2, level+1)) - 1; // permet si x1 pair on retire 1 
-    int y0c = (y0/pow(2, level+1)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1c = ((y1+1)/pow(2, level+1)) - 1;
-    int pc = y1c - y0c + 1;
-    int qc = x1c - x0c + 1;
-
-    int nxc = nx/pow(2,level+1); // nb de points coars sur un ligne pas bord
-    *nc = nxc * nxc - (pc * qc);
-    int nnzc = 5 * nxc * nxc - 4 * nxc ; 
-    //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
-    int trousc = (5 * (pc-2) * (qc-2) + 4 * 2 * (pc-2) + 4 * 2 * (qc-2) 
-                + 3 * 4 * 1 + 1 * 2 * pc + 1 * 2 * qc) + 2 * pc + 2 * qc;
-    nnzc -= trousc;
-
+    double hc, invh2c;
+    int x0c,x1c,y0c,y1c, nxc, nnzc;
+    computeParamLevel(m, level+1, &hc,&invh2c,&y0c,&y1c,&x0c,&x1c,&nxc, nc, &nnzc);
+    
+    printf("\n restrict level+1 : hc = %lf nc = %d nnzc = %d nxc = %d \n", hc, *nc, nnzc, nxc);
+    printf("x0c = %d x1c = %d y0c = %d y1c = %d \n", x0c, x1c, y0c, y1c);
 
 
     if (*rc == NULL){
-        *rc = calloc(*nc ,sizeof(double));
+        *rc = malloc(*nc *sizeof(double));
     }
 	
 
@@ -99,7 +59,7 @@ int restrictR(int level, double *rp, double **rc, int m, int *nc){
                 
                 //garde que ligne ind impair  & col impair 
                 if (iyp % 2 == 1 && ixp % 2 == 1){  
-
+                    (*rc)[*nc] = 0;
                     //marquer le début de la ligne suivante dans le tableau 'ia'            
                     //replissage de la ligne : voisin sud //ui-1
                     // + verification si pas au dessus d'un bord
@@ -168,18 +128,11 @@ int restrictR(int level, double *rp, double **rc, int m, int *nc){
 		printf("nr != n\n");
 		return 1;
 	}
-	else if (nc_save != *nc){
+	if (nc_save != *nc){
 		printf("nc_save %d != nc %d\n", nc_save, *nc );
 		return 1;
 	}
-    else {
-        printf("restrict : hp = %lf np = %d nnzp = %d nxp = %d \n", hp, np, nnzp, nxp);
-        printf("x0p = %d x1p = %d y0p = %d y1p = %d \n", x0p, x1p, y0p, y1p);
-
-        printf("and hc = %lf nc = %d nnzc = %d nxc = %d \n", hc, *nc, nnzc, nxc);
-        printf("x0c = %d x1c = %d y0c = %d y1c = %d \n", x0c, x1c, y0c, y1c);
-
-    }
+   
 	return 0;
 }
 
@@ -187,63 +140,28 @@ int restrictR(int level, double *rp, double **rc, int m, int *nc){
 int prolongR(int level, double **up, double *uc, int m, int *np){ //ici m de u pas de uc !
     //level 1 = on ou on est -> 0
 
-    //level 0
-	double h = 3.0/(double)(m-1);
-    double invh2 = 1.0/(h*h);
     
-
-    int x0,x1,y0,y1;
-    computeHole(&x0,&x1,&y0,&y1, m);
-
-    int nx = m-2;
-
-    int p = y1 - y0 + 1;
-    int q = x1 - x0 + 1;
-    int n = nx * nx - (p * q);
-    
-	
     //level level
+    double hc, invh2c;
+    int x0c,x1c,y0c,y1c, nxc, nc, nnzc;
 
-    double hc = h*pow(2, level);
-	double invh2c = 3.0/(hc*hc); 
+    computeParamLevel(m, level, &hc,&invh2c,&y0c,&y1c,&x0c,&x1c,&nxc, &nc, &nnzc);
 
-    int x0c = x0 / pow(2, level); // va arrondir au point grille coarse a droite 
-    int x1c = ((x1+1)/pow(2, level)) - 1; // permet si x1 pair on retire 1 
-    int y0c = (y0/pow(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1c = ((y1+1)/pow(2, level)) - 1;
-    int pc = y1c - y0c + 1;
-    int qc = x1c - x0c + 1;
-
-    int nxc = nx/pow(2,level); // nb de points coars sur un ligne pas bord
-    int nc = nxc * nxc - (pc * qc);
-    int nnzc = 5 * nxc * nxc - 4 * nxc ; 
-    //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
-    int trousc = (5 * (pc-2) * (qc-2) + 4 * 2 * (pc-2) + 4 * 2 * (qc-2) 
-                + 3 * 4 * 1 + 1 * 2 * pc + 1 * 2 * qc) + 2 * pc + 2 * qc;
-    nnzc -= trousc;
 
     //level -1 car on remonte dans la pyr inv
+    double hp, invh2p;
+    int x0p,x1p,y0p,y1p, nxp, nnzp;
 
-    double hp = h*pow(2, level-1);
-	double invh2p = 3.0/(hp*hp); 
+    computeParamLevel(m, level-1, &hp,&invh2p,&y0p,&y1p,&x0p,&x1p,&nxp, np, &nnzp);
 
-    int x0p = x0 / pow(2, level-1); // va arrondir au point grille coarse a droite 
-    int x1p = ((x1+1)/pow(2, level-1)) - 1; // permet si x1 pair on retire 1 
-    int y0p = (y0/pow(2, level-1)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1p = ((y1+1)/pow(2, level-1)) - 1;
-    int pp = y1p - y0p + 1;
-    int qp = x1p - x0p + 1;
+    printf("\n prolong : hp = %lf np = %d nnzp = %d nxp = %d \n", hp, *np, nnzp, nxp);
+    printf(" x0p = %d x1p = %d y0p = %d y1p = %d \n", x0p, x1p, y0p, y1p);
+    printf("\nand hc = %lf nc = %d nnzc = %d nxc = %d \n", hc, nc, nnzc, nxc);
+    printf("x0c = %d x1c = %d y0c = %d y1c = %d \n", x0c, x1c, y0c, y1c);
 
-    int nxp = nx/pow(2,level-1); // nb de points coars sur un ligne pas bord
-    *np = nxp * nxp - (pp * qp);
-    int nnzp = 5 * nxp * nxp - 4 * nxp ; 
-    //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
-    int trousp = (5 * (pp-2) * (qp-2) + 4 * 2 * (pp-2) + 4 * 2 * (qp-2) 
-                + 3 * 4 * 1 + 1 * 2 * pp + 1 * 2 * qp) + 2 * pp + 2 * qp;
-    nnzp -= trousp;
 
     if (*up == NULL){
-        *up = calloc(*np , sizeof(double));
+        *up = malloc(*np * sizeof(double));
     }
 	
 
@@ -261,21 +179,17 @@ int prolongR(int level, double **up, double *uc, int m, int *np){ //ici m de u p
             //exclu interieur et bord du trou
             if(! in_hole(ixp,iyp,y0p,y1p,x0p,x1p)){
                 
+                (*up)[*np] = 0;
+
 				//impair impair -> 1/4 somme des 4 autour
                 
-                //surevaluation d'origine inconnue pour la cat si dessous
-                // et qd bord a gauche car peut pas etre plus grand que le + grand des 4
                 if (iyp % 2 == 0 && ixp % 2 == 0){ 
                     //check si bord est bien la ou pense etre pour uc (pas faire une recherche alors que bord)
                     //somme coin gauche bas 
                     //check si point prol pas ds le trou
-                    if (ixp ==0 && iyp == 0){
-                        printf("check %d\n", check_sw(ixp,iyp,y0p,y1p,x0p,x1p,nxp));
-                        }
+                    
                     if (check_sw(ixp,iyp,y0p,y1p,x0p,x1p,nxp)){ // question est ce que prolong peut etre domaine et coarse ds un board ? non ca depend que de p
-                        if (ixp ==0){
-                        printf("ici ?? \n");
-                        }
+                        
 						ind = indice((ixp/2) - 1, (iyp/2)-1, y0c,y1c,x0c,x1c, nxc);//juste /2 -1 car point prol au milieu des 4 tjrs pair
                         (*up)[*np] += 0.25 * uc[ind]; 
                     }
@@ -283,17 +197,13 @@ int prolongR(int level, double **up, double *uc, int m, int *np){ //ici m de u p
                         double bound = computeBound((ixp+1-1)*hp,(iyp+1-1)*hp);
                         
                         (*up)[*np] += 0.25 * bound;
-                        if (ixp ==0){
-                        printf("bord sw %lf\n", bound);
-                        }
+                       
                     }
                     //coin droit bas
                     if (check_se(ixp,iyp,y0p,y1p,x0p,x1p,nxp)){ //cond droit
                         ind = indice((ixp/2) ,(iyp/2)-1, y0c,y1c,x0c,x1c, nxc);
                         (*up)[*np] += 0.25 * uc[ind];
-                        if (ixp ==0){
-                            printf("bord se %lf\n", uc[ind]);
-                        }
+                        
                     }
                     else{
                         (*up)[*np] += 0.25 * computeBound((ixp+1+1)*hp,(iyp+1-1)*hp);
@@ -306,9 +216,7 @@ int prolongR(int level, double **up, double *uc, int m, int *np){ //ici m de u p
                     else{
                         double bound = computeBound((ixp+1-1)*hp,(iyp + 1+1)*hp);
                         (*up)[*np] += 0.25 * bound;
-                        if (ixp ==0){
-                            printf("bord nw %lf\n", bound);
-                        }
+                        
                     }
                     //coin droit haut
                     
@@ -316,10 +224,6 @@ int prolongR(int level, double **up, double *uc, int m, int *np){ //ici m de u p
                         ind = indice((ixp/2),(iyp/2), y0c,y1c,x0c,x1c, nxc);
                         (*up)[*np] += 0.25 * uc[ind];
 
-                        if (ixp ==0){
-                            printf("bord ne %lf\n", uc[ind]);
-                        }
-                        
                     }
                     else{
                         (*up)[*np] += 0.25 * computeBound((ixp+1+1)*hp,(iyp+1+1)*hp);
@@ -375,82 +279,35 @@ int prolongR(int level, double **up, double *uc, int m, int *np){ //ici m de u p
                     nc += 1;       //=> 2 choses, pr point type 2 droite = nc gauche == nc-1
                     // et aussi que pour type 3 et 4 nc rpz point au dessus tt a gauche
                 }
+                
                 *np += 1;
             }
         }
     }
+    
     if (*np != np_save){
         printf(" err np %d npcheck %d\n", *np, np_save);
     }
-    else if (nc != nc_save){
+    if (nc != nc_save){
         printf(" err nc %d nccheck %d\n", nc, nc_save);
     }
-    else {
-        printf("\n prolong : hp = %lf np = %d nnzp = %d nxp = %d \n", hp, *np, nnzp, nxp);
-        printf(" x0p = %d x1p = %d y0p = %d y1p = %d \n", x0p, x1p, y0p, y1p);
-
-        printf("\nand hc = %lf nc = %d nnzc = %d nxc = %d \n", hc, nc, nnzc, nxc);
-        printf("x0c = %d x1c = %d y0c = %d y1c = %d \n", x0c, x1c, y0c, y1c);
-
-    }
+    
 	return 0;
 }
 
 
 int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *bl){
-
+    //ici level == celui dont on veut calculer A et b
     //mémoire deja allouée
 
-
-    /*
-    !!! mettre tt ce qui y a en dessous dans 1 fonction, a la tt fin seulement 
-    on optimise en enlevant le calcul redondant avec ce qui a dans computesize
-    */
-
-	//level 1 : 2grid method
-
-	//valeurs de u
-	double h = 3.0/(double)(m-1);
-    double invh2 = 1.0/(h*h);
-
-    int x0,x1,y0,y1;
-    computeHole(&x0,&x1,&y0,&y1, m);
     
-    int nx = m-2;
+    double hl, invh2l;
+    int x0l,x1l,y0l,y1l, nxl, nnzl;
 
-    int p = y1 - y0 + 1;
-    int q = x1 - x0 + 1;
-    int n = nx * nx - (p * q);
+    computeParamLevel(m, level, &hl,&invh2l,&y0l,&y1l,&x0l,&x1l,&nxl, nl, &nnzl);
     
-	//!!!! faux !
-	/*int sizeRc;
-	int mc = (m+1)/2;
-	double hc = 3.0/(mc-1);
-	int nxc = mc-2;
-	int x1c = ((int)(COORD_X1 * (mc-1)) /3)  -1; 
-    int x0c = (((int)(COORD_X0 * (mc-1)) + ((3 - ((int)(COORD_X0*(mc-1))%3))%3))/3)  -1;
-    int y1c = ((int)(COORD_Y1 * (mc-1)) /3)  -1;
-    int y0c = (((int)(COORD_Y0 * (mc-1)) + ((3 - ((int)(COORD_Y0*(mc-1))%3))%3))/3)  -1;
-    */
-	//peut pas calculer de nouveau m ou nx pour position du trou
-
-	double hl = h*pow(2, level);
-	double invh2l = 3.0/(hl*hl); 
-
-    int x0l = x0 / pow(2, level); // va arrondir au point grille coarse a droite 
-    int x1l = ((x1+1)/pow(2, level)) - 1; // permet si x1 pair on retire 1 
-    int y0l = (y0/pow(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1l = ((y1+1)/pow(2, level)) - 1;
-    int pl = y1l - y0l + 1;
-    int ql = x1l - x0l + 1;
-
-    int nxl = nx/pow(2,level); // nb de points coars sur un ligne pas bord
-    *nl = nxl * nxl - (pl * ql);
-    int nnzl = 5 * nxl * nxl - 4 * nxl ; 
-    //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
-    int trousl = (5 * (pl-2) * (ql-2) + 4 * 2 * (pl-2) + 4 * 2 * (ql-2) 
-                + 3 * 4 * 1 + 1 * 2 * pl + 1 * 2 * ql) + 2 * pl + 2 * ql;
-    nnzl -= trousl;
+    printf("\n ProbMg : hl = %lf nl = %d nnzl = %d nxl = %d \n", hl, *nl, nnzl, nxl);
+    printf("x0l = %d x1l = %d y0l = %d y1l = %d \n", x0l, x1l, y0l, y1l);
 
 	
     int nnzl_save = nnzl;
@@ -536,9 +393,6 @@ int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *bl
     }
     else {
         ial[ind] = nnzl;
-        printf("\n ProbMg : hl = %lf nl = %d nnzl = %d nxl = %d \n", hl, ind, nnzl, nxl);
-        printf("x0l = %d x1l = %d y0l = %d y1l = %d \n", x0l, x1l, y0l, y1l);
-
     }
 
 	return 0;
@@ -548,33 +402,9 @@ int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *bl
 int allocGridLevel(int m, int level, int *nl, int **ial,
                      int **jal, double **al, double **bl){
 
-    double h = 3.0/(double)(m-1);
-    double invh2 = 1.0/(h*h);
-
-    int x0,x1,y0,y1;
-    computeHole(&x0,&x1,&y0,&y1, m);
-    int nx = m-2;
-    int p = y1 - y0 + 1;
-    int q = x1 - x0 + 1;
-    int n = nx * nx - (p * q);
-
-
-    double hl = h*pow(2, level);
-    double invh2l = 3.0/(hl*hl); 
-
-    int x0l = x0 / pow(2, level); // va arrondir au point grille coarse a droite 
-    int x1l = ((x1+1)/pow(2, level)) - 1; // permet si x1 pair on retire 1 
-    int y0l = (y0/pow(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1l = ((y1+1)/pow(2, level)) - 1;
-    int pl = y1l - y0l + 1;
-    int ql = x1l - x0l + 1;
-    int nxl = nx/pow(2,level); // nb de points coars sur un ligne pas bord
-    *nl = nxl * nxl - (pl * ql);
-    int nnzl = 5 * nxl * nxl - 4 * nxl ; 
-    //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
-    int trousl = (5 * (pl-2) * (ql-2) + 4 * 2 * (pl-2) + 4 * 2 * (ql-2) 
-                + 3 * 4 * 1 + 1 * 2 * pl + 1 * 2 * ql) + 2 * pl + 2 * ql;
-    nnzl -= trousl;
+    double hl, invh2l;
+    int x0l,x1l,y0l,y1l, nxl, nnzl;
+    computeParamLevel(m, level, &hl,&invh2l,&y0l,&y1l,&x0l,&x1l,&nxl, nl, &nnzl);
     
     *ial = malloc((*nl + 1) * sizeof(int));
     *jal = malloc(nnzl * sizeof(int));
@@ -595,9 +425,7 @@ int allocGridLevel(int m, int level, int *nl, int **ial,
     }
 
     printf("\n Allow : hl = %lf nl = %d nnzl = %d nxl = %d \n", hl, *nl, nnzl, nxl);
-        printf("x0l = %d x1l = %d y0l = %d y1l = %d \n", x0l, x1l, y0l, y1l);
-
-    
+    printf("x0l = %d x1l = %d y0l = %d y1l = %d \n", x0l, x1l, y0l, y1l);
 
 
     return 0;

@@ -10,15 +10,265 @@
 #define COORD_Y0 1.5 //ligne bord bas
 #define COORD_Y1 2.0 //ligne bord haut
 
+void computeParamTop(int m, double *h, double *invh2, int *y0, 
+                     int *y1, int *x0, int *x1, int *nx, int *n){
+
+    *h = 3.0/(double)(m-1);
+    *invh2 = 1.0/((*h)*(*h));
+
+    computeHole(y0,y1,x0,x1, m);
+    
+    *nx = m-2;
+
+    int p = (*y1) - (*y0) + 1;
+    int q = (*x1) - (*x0) + 1;
+    *n = ((*nx) * (*nx)) - (p * q);
+}
+
+void computeParamLevel(int m, int level, double *hl, double *invh2l, 
+                        int *y0l, int *y1l, int *x0l, int *x1l,
+                        int *nxl, int *nl, int *nnzl){
+    //!!!! faux !
+	/*int sizeRc;
+	int mc = (m+1)/2;
+	double hc = 3.0/(mc-1);
+	int nxc = mc-2;
+	int x1c = ((int)(COORD_X1 * (mc-1)) /3)  -1; 
+    int x0c = (((int)(COORD_X0 * (mc-1)) + ((3 - ((int)(COORD_X0*(mc-1))%3))%3))/3)  -1;
+    int y1c = ((int)(COORD_Y1 * (mc-1)) /3)  -1;
+    int y0c = (((int)(COORD_Y0 * (mc-1)) + ((3 - ((int)(COORD_Y0*(mc-1))%3))%3))/3)  -1;
+    */
+	//peut pas calculer de nouveau m ou nx pour position du trou
+    double h, invh2;
+    int x0,x1,y0,y1, nx, n;
+
+    computeParamTop(m, &h,&invh2,&y0,&y1,&x0,&x1,&nx, &n);
 
 
 
 
+    *hl = h*pow(2, level);
+	*invh2l = 3.0/((*hl)*(*hl)); 
 
+    *x0l = x0 / pow(2, level); // va arrondir au point grille coarse a droite 
+    *x1l = ((x1+1)/pow(2, level)) - 1; // permet si x1 pair on retire 1 
+    *y0l = (y0/pow(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
+    *y1l = ((y1+1)/pow(2, level)) - 1;
+    int pl = *y1l - *y0l + 1;
+    int ql = *x1l - *x0l + 1;
+    
+
+
+    *nxl = nx/pow(2,level); // nb de points coars sur un ligne pas bord
+    *nl = ((*nxl) * (*nxl)) - (pl * ql);
+    *nnzl =( 5 * (*nxl) * (*nxl)) - (4 * (*nxl)) ; 
+    //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
+    int trousl = (5 * (pl-2) * (ql-2) + 4 * 2 * (pl-2) + 4 * 2 * (ql-2) 
+                + 3 * 4 * 1 + 1 * 2 * pl + 1 * 2 * ql) + 2 * pl + 2 * ql;
+    *nnzl -= trousl;
+}
+
+
+void computeHole(int *y0, int *y1, int *x0, int *x1, int m){
+
+    *x0 = 0;
+    *x1 = 0;
+    *y0 = 0;
+    *y1 = 0;
+    //x0
+    while ((*x0+1)*3 < COORD_X0*(m-1)){
+        *x0 += 1;
+    }
+    
+    //x1
+    while ((*x1+1)*3 < COORD_X1*(m-1)){
+        *x1 += 1;
+    }
+    if ((*x1+1)*3 != COORD_X1*(m-1)){
+        *x1 -= 1;
+    }
+    //y0
+    while ((*y0+1)*3 < COORD_Y0*(m-1)){
+        *y0 += 1;
+    }
+    //y1
+    while ((*y1+1)*3 < COORD_Y1*(m-1)){
+        *y1 += 1;
+    }
+    if ((*y1+1)*3 != COORD_Y1*(m-1)){
+        *y1 -= 1;
+    }
+}
 
 double computeBound(double x, double y){
     
     return exp(sqrt(x*x + y*y));
+}
+
+
+int in_hole(int ix, int iy, int y0, int y1, int x0, int x1){
+	
+    if (ix >= x0 && ix <= x1 && iy >= y0 && iy <= y1){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
+int on_bound(int px, int py, int m){
+	
+    if (py == 0 || py == (m-1) || px == 0 || px == (m-1)){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
+
+//h1 et h2 car soit on check de grille a grille ou alors de grille a grille coarse
+int check_nord(int ix, int iy, int y0, int y1, int x0, int x1, int nx){
+    
+	if (iy + 1 < nx && ! in_hole(ix, iy +1, y0,y1,x0,x1)){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
+int check_sud(int ix, int iy, int y0, int y1, int x0, int x1, int nx){
+    
+	if (iy > 0 && ! in_hole(ix, iy -1, y0,y1,x0,x1)){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+int check_west(int ix, int iy, int y0, int y1, int x0, int x1, int nx){
+    
+	if (ix > 0 && ! in_hole(ix - 1, iy, y0,y1,x0,x1)){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
+int check_est(int ix, int iy, int y0, int y1, int x0, int x1, int nx){
+    
+	if (ix + 1 < nx && ! in_hole(ix+1, iy, y0,y1,x0,x1)){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+int check_nw(int ixp, int iyp, int y0p, int y1p, int x0p, int x1p, int nxp){
+    
+	int ixnw = ixp - 1;//ind point nw sur la grille prolong 
+    int iynw = iyp + 1;
+    if (ixnw >= 0 && iynw < nxp && ! in_hole(ixnw, iynw, y0p,y1p,x0p,x1p)){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
+int check_ne(int ixp, int iyp, int y0p, int y1p, int x0p, int x1p, int nxp){
+    
+	int ixne =  ixp + 1;//ind point sw sur la grille prolong 
+    int iyne = iyp + 1;
+    if (ixne < nxp && iyne < nxp && ! in_hole(ixne, iyne, y0p,y1p,x0p,x1p)){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
+int check_sw(int ixp, int iyp, int y0p, int y1p, int x0p, int x1p, int nxp){
+    //return 1/true lrsque point de la grille prolongé fait partie des variable
+	int ixsw =  ixp - 1;//ind point sw sur la grille prolong 
+    int iysw = iyp - 1;
+    if (ixsw >= 0 && iysw >=0 && ! in_hole(ixsw, iysw, y0p,y1p,x0p,x1p)){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
+int check_se(int ixp, int iyp, int y0p, int y1p, int x0p, int x1p, int nxp){
+    
+	int ixse =  ixp+1;//ind point nw sur la grille prolong 
+    int iyse = iyp - 1;
+    if (ixse < nxp && iyse >= 0 && ! in_hole(ixse, iyse, y0p,y1p,x0p,x1p)){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
+int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx){ //ix iy -> indice dans matrice u (csr)
+	
+	int ind;
+	int p = y1 - y0 + 1;
+	int q = x1- x0 + 1;
+	if (iy < y0 || (iy == y0 && ix < x0) ){//pas de retard
+		ind = ix + (iy * nx);
+	}
+	else if ((ix > x1) && (iy >= y0 && iy < y1 )){ // retard en augmentation
+		ind = ix + (iy * nx) - q*(iy - y0 +1) ;
+	}
+	else if ((ix < x0) && (iy >= y0 && iy <= y1 )){ // retard en augmentation
+		ind = ix + (iy * nx) - q*(iy -1 - y0 +1) ; // -1 car retard ne change pas qd reste a gauche du trou et qu'on passe a la ligne sup
+	}
+	else {
+		ind = ix + (iy * nx) - q*p; // retard constant
+	}
+
+	return ind;
+}
+
+
+
+int computeRes(int n, int *ia, int *ja, double *a, double *u, double *b, double *r){
+	
+	//r = b -Au
+	int i = 0;
+	int jai = 0;
+	while (i < n){
+		r[i] = b[i];
+		int ite = ia[i + 1] - ia[i];
+		int j = 0;
+		while (j < ite){
+			r[i] -= a[jai + j] * u[ja[jai + j]]; 		
+			j += 1;
+		}
+		jai += ite;
+		i += 1;
+	}	
+	//trop gourmant  de faire memoire multMatVectCsr(n, ia, ja, a, u, au);
+	//soustVect(n, b, au, r);
+
+	return 0;
+}
+
+double computeResNorm(int n, int *ia, int *ja, double *a, double *u, double *b, double *r){
+
+	double rn = 0;
+
+	computeRes(n,ia,ja,a,u,b,r);
+	for (int i = 0; i < n; i++){
+		rn += r[i] * r[i];
+	}
+	rn = sqrt(rn);
+	return rn;
 }
 
 
@@ -215,211 +465,6 @@ int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
     /* retour de fonction habituel */
     return 0;
 }
-
-
-int in_hole(int ix, int iy, int y0, int y1, int x0, int x1){
-	
-    if (ix >= x0 && ix <= x1 && iy >= y0 && iy <= y1){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-int on_bound(int px, int py, int m){
-	
-    if (py == 0 || py == (m-1) || px == 0 || px == (m-1)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-
-//h1 et h2 car soit on check de grille a grille ou alors de grille a grille coarse
-int check_nord(int ix, int iy, int y0, int y1, int x0, int x1, int nx){
-    
-	if (iy + 1 < nx && ! in_hole(ix, iy +1, y0,y1,x0,x1)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-int check_sud(int ix, int iy, int y0, int y1, int x0, int x1, int nx){
-    
-	if (iy > 0 && ! in_hole(ix, iy -1, y0,y1,x0,x1)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-int check_west(int ix, int iy, int y0, int y1, int x0, int x1, int nx){
-    
-	if (ix > 0 && ! in_hole(ix - 1, iy, y0,y1,x0,x1)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-int check_est(int ix, int iy, int y0, int y1, int x0, int x1, int nx){
-    
-	if (ix + 1 < nx && ! in_hole(ix+1, iy, y0,y1,x0,x1)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-int check_nw(int ixp, int iyp, int y0p, int y1p, int x0p, int x1p, int nxp){
-    
-	int ixnw = ixp - 1;//ind point nw sur la grille prolong 
-    int iynw = iyp + 1;
-    if (ixnw >= 0 && iynw < nxp && ! in_hole(ixnw, iynw, y0p,y1p,x0p,x1p)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-int check_ne(int ixp, int iyp, int y0p, int y1p, int x0p, int x1p, int nxp){
-    
-	int ixne =  ixp + 1;//ind point sw sur la grille prolong 
-    int iyne = iyp + 1;
-    if (ixne < nxp && iyne < nxp && ! in_hole(ixne, iyne, y0p,y1p,x0p,x1p)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-int check_sw(int ixp, int iyp, int y0p, int y1p, int x0p, int x1p, int nxp){
-    //return 1/true lrsque point de la grille prolongé fait partie des variable
-	int ixsw =  ixp - 1;//ind point sw sur la grille prolong 
-    int iysw = iyp - 1;
-    if (ixsw >= 0 && iysw >=0 && ! in_hole(ixsw, iysw, y0p,y1p,x0p,x1p)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-int check_se(int ixp, int iyp, int y0p, int y1p, int x0p, int x1p, int nxp){
-    
-	int ixse =  ixp+1;//ind point nw sur la grille prolong 
-    int iyse = iyp - 1;
-    if (ixse < nxp && iyse >= 0 && ! in_hole(ixse, iyse, y0p,y1p,x0p,x1p)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx){ //ix iy -> indice dans matrice u (csr)
-	
-	int ind;
-	int p = y1 - y0 + 1;
-	int q = x1- x0 + 1;
-	if (iy < y0 || (iy == y0 && ix < x0) ){//pas de retard
-		ind = ix + (iy * nx);
-	}
-	else if ((ix > x1) && (iy >= y0 && iy < y1 )){ // retard en augmentation
-		ind = ix + (iy * nx) - q*(iy - y0 +1) ;
-	}
-	else if ((ix < x0) && (iy >= y0 && iy <= y1 )){ // retard en augmentation
-		ind = ix + (iy * nx) - q*(iy -1 - y0 +1) ; // -1 car retard ne change pas qd reste a gauche du trou et qu'on passe a la ligne sup
-	}
-	else {
-		ind = ix + (iy * nx) - q*p; // retard constant
-	}
-
-	return ind;
-}
-
-
-void computeHole(int *x0, int *x1, int *y0, int *y1, int m){
-
-    *x0 = 0;
-    *x1 = 0;
-    *y0 = 0;
-    *y1 = 0;
-    //x0
-    while ((*x0+1)*3 < COORD_X0*(m-1)){
-        *x0 += 1;
-    }
-    
-    //x1
-    while ((*x1+1)*3 < COORD_X1*(m-1)){
-        *x1 += 1;
-    }
-    if ((*x1+1)*3 != COORD_X1*(m-1)){
-        *x1 -= 1;
-    }
-    //y0
-    while ((*y0+1)*3 < COORD_Y0*(m-1)){
-        *y0 += 1;
-    }
-    //y1
-    while ((*y1+1)*3 < COORD_Y1*(m-1)){
-        *y1 += 1;
-    }
-    if ((*y1+1)*3 != COORD_Y1*(m-1)){
-        *y1 -= 1;
-    }
-    /*
-    if (level != 0){
-        *x0 = *x0 / pow(2, level); // va arrondir au point grille coarse a droite 
-        *x1 = ((*x1+1)/pow(2, level)) - 1; // permet si x1 pair on retire 1 
-        *y0 = (*y0/pow(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-        y1 = ((*y1+1)/pow(2, level)) - 1;
-    }*/
-}
-
-int computeRes(int n, int *ia, int *ja, double *a, double *u, double *b, double *r){
-	
-	//r = b -Au
-	int i = 0;
-	int jai = 0;
-	while (i < n){
-		r[i] = b[i];
-		int ite = ia[i + 1] - ia[i];
-		int j = 0;
-		while (j < ite){
-			r[i] -= a[jai + j] * u[ja[jai + j]]; 		
-			j += 1;
-		}
-		jai += ite;
-		i += 1;
-	}	
-	//trop gourmant  de faire memoire multMatVectCsr(n, ia, ja, a, u, au);
-	//soustVect(n, b, au, r);
-
-	return 0;
-}
-
-double computeResNorm(int n, int *ia, int *ja, double *a, double *u, double *b, double *r){
-
-	double rn = 0;
-
-	computeRes(n,ia,ja,a,u,b,r);
-	for (int i = 0; i < n; i++){
-		rn += r[i] * r[i];
-	}
-	rn = sqrt(rn);
-	return rn;
-}
-
-
 int ancienprob(int m, int *n, int **ia, int **ja, double **a, double **b)
 /*
    But

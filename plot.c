@@ -32,45 +32,12 @@ void plot_static(double *x, int m, int level){
     x (input) - pointeur vers le vecteur a plot
     m (input)     - nombre de points par directions dans la grille
     */
-    
-    double h = 3.0/(double)(m-1);
-    double invh2 = 1.0/(h*h);
+    double hl, invh2l;
+    int x0l,x1l,y0l,y1l, nxl, nl, nnzl;
 
-    // coordonnees du trou sur la grille discrete
-    
-    /*int x1 = ((int)(COORD_X1 * (m-1)) /3)  -1; 
-    int x0 = (((int)(COORD_X0 * (m-1)) + ((3 - ((int)(COORD_X0*(m-1))%3))%3))/3)  -1;//4 alors que 3
-    int y1 = ((int)(COORD_Y1 * (m-1)) /3)  -1;
-    int y0 = (((int)(COORD_Y0 * (m-1)) + ((3 - ((int)(COORD_Y0*(m-1))%3))%3))/3)  -1; //6 alors qu'on veut 5
-    */
-    int x0,x1,y0,y1;
-    computeHole(&x0,&x1,&y0,&y1, m); //y0 = 7 mais devrait 6 comme 16
-
-    
-    int nx = m-2;
-    //nb de points sur la largeur du trous
-
-    int p = y1 - y0 + 1;//m%2 + m/6; //== nb de points entre y1 et y0
-    // "" sur la longueur
-    int q = x1- x0 + 1;//m%2 + m/2;
-    //plaque hors bords et trous
-    int n = nx * nx - (p * q);
+    computeParamLevel(m, level, &hl,&invh2l,&y0l,&y1l,&x0l,&x1l,&nxl, &nl, &nnzl);
    
-
-   /*level*/
-    double hl = h*pow(2, level);
-	double invh2l = 3.0/(hl*hl); 
-
-    int x0l = x0 / pow(2, level); // va arrondir au point grille coarse a droite 
-    int x1l = ((x1+1)/pow(2, level)) - 1; // permet si x1 pair on retire 1 
-    int y0l = (y0/pow(2, level)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-    int y1l = ((y1+1)/pow(2, level)) - 1;
-    int pl = y1l - y0l + 1;
-    int ql = x1l - x0l + 1;
-
-    int nxl = nx/pow(2,level); // nb de points coars sur un ligne pas bord
-    int nl = nxl * nxl - (pl * ql);
-
+    
     int ml = nxl+2;
 
     /*creation du ficher*/

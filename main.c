@@ -14,66 +14,7 @@ int main(int argc, char *argv[])
    check si restrict -> prolong on revient a meme dim
    */
 
-   int m2 = 100;
-   int level2 = 2;
-
-   int n2;
-   int *ia2 = NULL;
-   int *ja2 = NULL; 
-   double *a2 = NULL;
-   double *b2 = NULL;
-   double *x2 = NULL;
-   double *uc2 = NULL;
-   
-   allocGridLevel(m2, level2, &n2, &ia2, &ja2, &a2, &b2);
-   probMg(m2, level2, &n2, ia2, ja2, a2, b2);
-
-   x2 = malloc(n2 * sizeof(double));
-   
-   solve_umfpack(n2, ia2, ja2, a2, b2, x2);
-   double *r2 = malloc(n2*sizeof(double));
-   double rn2 = computeResNorm(n2,ia2,ja2,a2,x2, b2,r2);
-   printf(" \nnorme résidu r:%.16g\n", rn2);
-   free(r2);
-
-   /*printf("base :\n");
-   for( int i = 0; i < n2; i++){
-         printf(" %lf ", x2[i]);
-   }*/
-   //plot_static(x2, m2, level2);
-
-   /*
-   int nc2;
-   restrictR(level2, x2, &uc2, m2, &nc2);
-   */
-   /*printf("restricted :\n");
-   for( int i = 0; i < nc2; i++){
-         printf(" %lf ", uc2[i]);
-   }*/
-   //plot_static(uc2, m2, level2+1);
-
-
-   //plot
-   
-   double *up = NULL;
-   int np;
-   prolongR(level2, &up, x2, m2, &np);
-
-   /*
-   
-
-   */
-
-   
-   printf("prolonged :\n");
-   for( int i = 0; i < np; i++){
-         printf(" %lf ", up[i]);
-   }
-   printf("\n");
-   plot_static(up, m2, 1);
-
-
-   int m1 = m2;
+   int m1 = 100;
    int level1 = 1;
 
    int n1;
@@ -81,27 +22,61 @@ int main(int argc, char *argv[])
    int *ja1 = NULL; 
    double *a1 = NULL;
    double *b1 = NULL;
+   double *x1 = NULL;
    
    allocGridLevel(m1, level1, &n1, &ia1, &ja1, &a1, &b1);
    probMg(m1, level1, &n1, ia1, ja1, a1, b1);
 
-   double *r3 = malloc(n1*sizeof(double));
-   double rn3 = computeResNorm(n1,ia1,ja1,a1,up, b1,r3);
-   printf(" \nnorme résidu r:%.16g\n", rn3);
-   free(r3);
+   x1 = malloc(n1 * sizeof(double));
+   
+   solve_umfpack(n1, ia1, ja1, a1, b1, x1);
+
+   
+   
+   double *r1 = malloc(n1*sizeof(double));
+   double rn1 = computeResNorm(n1,ia1,ja1,a1,x1, b1,r1);
+   printf(" \nnorme résidu r:%.16g\n", rn1);
+   free(r1);
+
+   /*printf("base :\n");
+   for( int i = 0; i < n1; i++){
+         printf(" %lf ", x1[i]);
+   }*/
+   plot_static(x1, m1, level1);
+
+   double *uc2 = NULL;
+   int nc2;
+   restrictR(level1, x1, &uc2, m1, &nc2);
+  
+   /*printf("restricted :\n");
+   for( int i = 0; i < nc2; i++){
+         printf(" %lf ", uc2[i]);
+   }*/
+   plot_static(uc2, m1, level1+1);
 
 
 
-   free(up);
+   
+   double *up = NULL;
+   int np;
+   prolongR(level1+1, &up, uc2, m1, &np);
 
-   free(uc2);
- free(ia2);
-  free(ja2); 
-  free(a2);
-   free(b2); 
-   free(x2);
+   
+
+   /*
+   printf("prolonged :\n");
+   for( int i = 0; i < np; i++){
+         printf(" %lf ", up[i]);
+   }
+   printf("\n");*/
+   plot_static(up, m1, level1);
 
 
+
+   free(ia1);free(ja1); free(a1); free(b1); free(x1); free(uc2); free(up);
+
+
+   
 /*
   int m = 26; //  >= 13 et impaire pour la restriction et conserver distance par rapport au bords
   int level = 1; //level 1 min 26 , 2 52,3 104, level max 6-7

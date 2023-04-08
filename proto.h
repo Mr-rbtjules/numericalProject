@@ -9,6 +9,12 @@ int solve_umfpack(int n, int *ia, int *ja, double *a,
                   double *b, double *x);
 
 //prob.c
+void computeParamTop(int m, double *h, double *invh2, int *y0,
+                     int *y1, int *x0, int *x1, int *nx, int *n);
+void computeParamLevel(int m, int level, double *hl, double *invh2l, 
+                        int *y0l, int *y1l, int *x0l, int *x1l,
+                        int *nxl, int *nl,int *nnzl);
+
 int prob(int m, int *n, int **ia, int **ja, double **a, double **b);
 double computeBound(double x, double y);
 int in_hole(int ix, int iy, int y0, int y1, int x0, int x1);
@@ -22,7 +28,7 @@ int check_sw(int ix, int iy, int y0, int y1, int x0, int x1, int nx);
 int check_se(int ix, int iy, int y0, int y1, int x0, int x1, int nx);
 int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx);
 int on_bound(int ix, int iy, int m);
-void computeHole(int *x0, int *x1, int *y0, int *y1, int m);
+void computeHole(int *y0, int *y1, int *x0, int *x1, int m);
 //grid_corr.c
 int restrictR(int level, double *rp, double **rc, int m, int *nc);
 int prolongR(int level, double **up, double *uc, int m, int *np);
