@@ -15,8 +15,8 @@ prob                       V
 -restr puis prol           V
 
 2.method
--compute res
--gaussResL/u
+-compute res               V
+-gaussResL/u               
 -add vect
 
 -stationnary iter

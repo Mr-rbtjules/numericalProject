@@ -39,6 +39,11 @@ int allocGridLevel(int m, int level, int *nl, int **ial,
 void plot_static(double *x, int m, int level);
 
 //method.c
+int mg_method(int iter, int levelMax, int m);
+int allowGrids(int m, int levelMax, int **nl, int ***ial,
+               int ***jal, double ***al, double ***bl,
+			   double ***dl, double ***rl, double ***ul);
+
 int stationaryIter(int iter, int n, int *ia, int *ja, double *a,
 					 double *b, double *u, int forward);
 int gaussResL(int n , int *il, int *jl, double *l, double *x, double *b);

@@ -16,9 +16,8 @@
 
 int restrictR(int level, double *rp, double **rc, int m, int *nc){
     //level = 0 = ou on est ->1
-
-    //level 0(calculer dans computeparamlevel)
-	
+    // lvel -> level +1 
+    
 
     //level -1 (prolonge donc monte dans la pyramyde)
     double hp, invh2p;
@@ -138,8 +137,8 @@ int restrictR(int level, double *rp, double **rc, int m, int *nc){
 
 
 int prolongR(int level, double **up, double *uc, int m, int *np){ //ici m de u pas de uc !
-    //level 1 = on ou on est -> 0
-
+    //level 1 = on ou on est -> on va vers 0
+    // level -> level -1
     
     //level level
     double hc, invh2c;
@@ -409,17 +408,9 @@ int allocGridLevel(int m, int level, int *nl, int **ial,
     *ial = malloc((*nl + 1) * sizeof(int));
     *jal = malloc(nnzl * sizeof(int));
     *al = malloc(nnzl * sizeof(double));
-
-
     *bl = malloc(*nl * sizeof(double));
-    if (*bl == NULL ){
-        printf("\n ERREUR : pas assez de mémoire pour générer le système\n\n");
-        return 1;
-    }
-
     
-    
-    if (*ial == NULL || *jal == NULL || *al == NULL){
+    if (*bl == NULL || *ial == NULL || *jal == NULL || *al == NULL){
         printf("\n ERREUR : pas assez de mémoire pour générer le système\n\n");
         return 1;
     }

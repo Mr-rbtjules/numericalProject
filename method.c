@@ -3,6 +3,65 @@
 #include <math.h>
 
 
+
+int allowGrids(int m, int levelMax, int **nl, int ***ial,
+               int ***jal, double ***al, double ***bl,
+			   double ***dl, double ***rl, double ***ul){ /* *** var liste de liste et on acces la memoire donc 1 en plus */
+
+	for (int i = 0; i < level)
+
+
+	return 0;
+}
+
+int mg_method(int iter, int levelMax, int m){
+	//initit memory and pointers
+	//compute all the coarse matrix and nl
+	int **ial; //liste donc chaque elem pointe vers 1 matrice d'un certain level (ici matrice == liste)
+	int **jal;
+	double **al;
+	double **rl;
+	double **ul;
+	double **dl;
+	
+	double **bl; /*attention aux autres b prc pt on les utilise pour autre*/
+	
+	double *nl;
+
+	allowGrids(m, levelMax, &nl, &ial, &jal, &al, &bl, &bl, &dl, &rl, &ul);
+
+	
+	for (int i = 0; i < level; i++){
+		ial[i] = malloc(size_ial[i] * sizeof(int));
+		jal[i] = malloc(size_jal[i] * sizeof(int));
+		al[i] = malloc(size_al[i] * sizeof(double));
+		rl[i] = malloc(size_rl[i] * sizeof(double));
+		dl[i] = malloc(size_dl[i] * sizeof(double));
+		ul[i] = malloc(size_ul[i] * sizeof(double));
+		//compute a and all ac
+		probMg(m, i, ial[i], jal[i], al[i], b);
+	}
+	
+	
+	for (int i = 0; i < iter; i++){
+		tg_rec(levelMax, m, size_ul, mu1, mu2, ial, 
+					jal, al, b, ul, rl, dl);
+		//print(res et u) + save
+	}
+	//
+
+	for (int j = 0; i < levelMax; i++){
+		free(ial[i]);
+		free(jal[i]);
+		free(al[i])
+		free(rl[i]);
+		free(dl[i]);
+		free(ul[i]);
+	}
+	
+
+}
+
 //ial liste de liste d'elem deja compute 
 int tg_rec(int level, int m, int *nl, int mu1, int mu2, int **ial, 
 					int **jal, double **al, double *b, double **ul, double **rl, double **dl){
@@ -16,7 +75,7 @@ int tg_rec(int level, int m, int *nl, int mu1, int mu2, int **ial,
 		computeRes(n, ial[level], jal[level], al[level], ul[level], bl[level], &rl[level]);
 		restrictR(m, level, rl[level],rl[level-1], m, nl[level]); //modify malloc init
 		//au dessus s'effecctue du haut du v vers le bas
-		tg_rec(level-1, nl, mu1, mu2, ial, jal, al, rl[level], ul, rl);//recursivité , ici important on repart avec A c = r
+		tg_rec(level+1, nl, mu1, mu2, ial, jal, al, rl[level], ul, rl);//recursivité , ici important on repart avec A c = r
 		// on voit que ul est composé de u en 0 puis que des c puis en
 		// remontant on va applique les corrections aux corrections, r est composé du 
 		//'vrai residu en 0 pus des residu de residu etc
@@ -33,96 +92,8 @@ int tg_rec(int level, int m, int *nl, int mu1, int mu2, int **ial,
 	return 0;
 }
 
-int computeSize(int m, int level, int m, int **size_ial,int **size_jal,
-				int **size_al, int **size_rl, int **size_dl, int **size_ul){
 
-	int nx = m-2;
 
-	*size_ial = malloc(level * sizeof(int));
-	*size_jal = malloc(level * sizeof(int));
-	*size_al = malloc(level * sizeof(int));
-	*size_ul = malloc(level * sizeof(int));
-	*size_dl = malloc(level * sizeof(int));
-
-	for (int i = 1; level){
-		
-		int x0c = x0 / exp(2, i); // va arrondir au point grille coarse a droite 
-		int x1c = ((x1+1)/exp(2, i)) - 1; // permet si x1 pair on retire 1 
-		int y0c = (y0/exp(2, i)); // arrondu coarse au dessus (permet de pas ajouter des points dans le trou)
-		int y1c = ((y1+1)/exp(2, i)) - 1;
-		int pc = y1c - y0c + 1;
-		int qc = x1c - x0c + 1;
-
-		int nxc = nx/exp(2,i); // nb de points coars sur un ligne pas bord
-		int nc = nxc * nxc - (pc * qc);
-		int nnzc = 5 * nxc * nxc - 4 * nxc ; 
-		//nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
-		int trousc = (5 * (pc-2) * (qc-2) + 4 * 2 * (pc-2) + 4 * 2 * (qc-2) 
-					+ 3 * 4 * 1 + 1 * 2 * pc + 1 * 2 * qc) + 2 * pc + 2 * qc;
-		nnzc -= trousc;
-
-		size_ial[0][i] = nc + 1;
-		size_jal[0][i] = nnzc;
-		size_al[0][i] = nnzc;
-		size_dl[0][i] = nc;
-		size_ral[0][i] = nc;
-		size_ual[0][i] = nc;
-	
-	}
-	return 0;
-}
-
-int mg_method(int iter, int level, int m){
-	//initit memory and pointers
-	//compute all the coarse matrix and nl
-	int **ial;
-	int **jal;
-	double **al;
-	double **rl;
-	double **ul;
-	double **dl;
-	
-	double *b;
-	int *size_ial;
-	int *size_jal;
-	int *size_al;
-	int *size_rl;
-	int *size_dl;
-	int *size_ul;
-
-	computeSize(&size_ial, &size_jal, &size_al, &size_rl, &size_dl, &size_ul);
-
-	b = malloc(size_ul[0]* sizeof(double));
-	for (int i = 0; i < level; i++){
-		ial[i] = malloc(size_ial[i] * sizeof(int));
-		jal[i] = malloc(size_jal[i] * sizeof(int));
-		al[i] = malloc(size_al[i] * sizeof(double));
-		rl[i] = malloc(size_rl[i] * sizeof(double));
-		dl[i] = malloc(size_dl[i] * sizeof(double));
-		ul[i] = malloc(size_ul[i] * sizeof(double));
-		//compute a and all ac
-		probMg(m, i, ial[i], jal[i], al[i], b);
-	}
-	
-	
-	for (int i = 0; i < iter; i++){
-		tg_rec(level, m, size_ul, mu1, mu2, ial, 
-					jal, al, b, ul, rl, dl);
-		//print(res et u) + save
-	}
-	//
-
-	for (int j = 0; i < level; i++){
-		free(ial[i]);
-		free(jal[i]);
-		free(al[i])
-		free(rl[i]);
-		free(dl[i]);
-		free(ul[i]);
-	}
-	
-
-}
 
 //pener a compute B que 1 fois dans le multigrid
 int forwardGS(int iter, int n, int *ia, int *ja, double *a, double *b, double **u, double **r, double **d){
@@ -217,12 +188,6 @@ double computeResNorm(int n, int *ia, int *ja, double *a, double *u, double *b, 
 	rn = sqrt(rn);
 	return rn;
 }
-
-
-
-
-
-
 
 //pas besoin de crer L, juste prendre ds A trou de balle
 int gaussResL(int n , int *il, int *jl, double *l, double *x, double *b){) {
