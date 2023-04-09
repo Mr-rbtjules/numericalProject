@@ -16,6 +16,9 @@ prob                       V
 
 2.method
 -compute res               V
+
+changer restrict prol pr plus que *r et pas **r pareil pour nc ?
+
 -gaussResL/u               
 -add vect
 

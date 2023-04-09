@@ -17,7 +17,7 @@ clean:
 	rm *.o 
 	rm main
 
-main: main.c prob.o time.o  umfpack.o plot.o grid_corr.o
+main: main.c prob.o time.o  umfpack.o plot.o grid_corr.o method.o
 	cc $(COPT) $^ -o $@ $(LIB)
 
 umfpack.o: umfpack.c

@@ -237,40 +237,6 @@ int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx){ //ix iy -> in
 
 
 
-int computeRes(int n, int *ia, int *ja, double *a, double *u, double *b, double *r){
-	
-	//r = b -Au
-	int i = 0;
-	int jai = 0;
-	while (i < n){
-		r[i] = b[i];
-		int ite = ia[i + 1] - ia[i];
-		int j = 0;
-		while (j < ite){
-			r[i] -= a[jai + j] * u[ja[jai + j]]; 		
-			j += 1;
-		}
-		jai += ite;
-		i += 1;
-	}	
-	//trop gourmant  de faire memoire multMatVectCsr(n, ia, ja, a, u, au);
-	//soustVect(n, b, au, r);
-
-	return 0;
-}
-
-double computeResNorm(int n, int *ia, int *ja, double *a, double *u, double *b, double *r){
-
-	double rn = 0;
-
-	computeRes(n,ia,ja,a,u,b,r);
-	for (int i = 0; i < n; i++){
-		rn += r[i] * r[i];
-	}
-	rn = sqrt(rn);
-	return rn;
-}
-
 
 int prob(int m, int *n, int **ia, int **ja, double **a, double **b)
 /*

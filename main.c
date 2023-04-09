@@ -10,6 +10,7 @@
 int main(int argc, char *argv[])
 {
 
+   
    /*
    check si restrict -> prolong on revient a meme dim
    */
