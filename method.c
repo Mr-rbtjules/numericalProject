@@ -33,6 +33,37 @@ int allocGrids(int m, int levelMax, int **nl, int ***ial,
 	return 0;
 }
 
+
+int allocLevel(int m, int level, int *nl, int ***ial,
+                     int ***jal, double ***al, double ***bl,
+                     double ***dl, double ***rl, double ***ul){
+
+    double hl, invh2l;
+    int x0l,x1l,y0l,y1l, nxl, nnzl;
+    computeParamLevel(m, level, &hl,&invh2l,&y0l,&y1l,&x0l,&x1l,&nxl, &(nl[level]), &nnzl);
+    
+    (*ial)[level] = malloc((nl[level] + 1) * sizeof(int));
+    (*jal)[level] = malloc(nnzl * sizeof(int));
+    (*al)[level] = malloc(nnzl * sizeof(double));
+    (*bl)[level] = malloc(nl[level] * sizeof(double));
+    (*dl)[level] = malloc(nl[level] * sizeof(double));
+    (*rl)[level] = malloc(nl[level] * sizeof(double));
+    (*ul)[level] = malloc(nl[level] * sizeof(double));
+    
+    if (*bl == NULL || *ial == NULL || *jal == NULL || 
+        *al == NULL ||*dl == NULL || *rl == NULL || *ul == NULL){
+        printf("\n ERREUR : pas assez de mémoire pour générer le système\n\n");
+        return 1;
+    }
+
+    printf("\n Alloc level %d : hl = %lf nl ",level, hl);
+    printf(" = %d nnzl = %d nxl = %d \n", nl[level], nnzl, nxl);
+    printf("x0l = %d x1l = %d y0l = %d y1l = %d \n", x0l, x1l, y0l, y1l);
+
+
+    return 0;
+}
+
 int mg_method(int iter, int levelMax, int m){
 	//initit memory and pointers
 	//compute all the coarse matrix and nl

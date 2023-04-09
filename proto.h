@@ -40,9 +40,15 @@ void plot_static(double *x, int m, int level);
 
 //method.c
 int mg_method(int iter, int levelMax, int m);
+int tg_rec(int level, int levelMax, int m, int mu1, int mu2, 
+		   int *nl, int mu1, int mu2, int **ial, int **jal,
+		   double **al, double *b, double **ul, double **rl, double **dl);
 int allocGrids(int m, int levelMax, int **nl, int ***ial,
                int ***jal, double ***al, double ***bl,
 			   double ***dl, double ***rl, double ***ul);
+int allocLevel(int m, int level, int *nl, int ***ial,
+                     int ***jal, double ***al, double ***bl,
+                     double ***dl, double ***rl, double ***ul);
 
 int stationaryIter(int iter, int n, int *ia, int *ja, double *a,
 					 double *b, double *u, int forward);
