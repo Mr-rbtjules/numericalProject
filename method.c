@@ -2,13 +2,32 @@
 #include <stdio.h>
 #include <math.h>
 
-
+/*
+        level 0
+\      /1
+ \    /2
+  \  /3
+   \/4 = level max = nb de fois qu'on restr
+*/
 
 int allocGrids(int m, int levelMax, int **nl, int ***ial,
                int ***jal, double ***al, double ***bl,
 			   double ***dl, double ***rl, double ***ul){ /* *** var liste de liste et on acces la memoire donc 1 en plus */
 
-	for (int i = 0; i < level)
+	*ial = malloc((levelMax+1) * sizeof(int*));
+	*jal = malloc((levelMax+1) * sizeof(int*));
+	*al = malloc((levelMax+1) * sizeof(double*));
+	*rl = malloc((levelMax+1) * sizeof(double*));
+	*dl = malloc((levelMax+1) * sizeof(double*));
+	*ul = malloc((levelMax+1) * sizeof(double*));
+	*bl = malloc((levelMax+1) * sizeof(double*));
+
+	*nl = malloc((levelMax+1) * sizeof(int));
+
+	for (int l = 0; l <= levelMax; l++){	
+		
+		allocLevel(m, l, nl, &ial, &jal, &al, &bl, &dl, &rl, &ul);
+	}
 
 
 	return 0;
@@ -30,44 +49,40 @@ int mg_method(int iter, int levelMax, int m){
 
 	allocGrids(m, levelMax, &nl, &ial, &jal, &al, &bl, &bl, &dl, &rl, &ul);
 
-	
-	for (int i = 0; i < level; i++){
-		ial[i] = malloc(size_ial[i] * sizeof(int));
-		jal[i] = malloc(size_jal[i] * sizeof(int));
-		al[i] = malloc(size_al[i] * sizeof(double));
-		rl[i] = malloc(size_rl[i] * sizeof(double));
-		dl[i] = malloc(size_dl[i] * sizeof(double));
-		ul[i] = malloc(size_ul[i] * sizeof(double));
-		//compute a and all ac
-		probMg(m, i, ial[i], jal[i], al[i], b);
+	//precomputation of all Ac and bc
+	for (int l = 0; l <= levelMax; l++){
+		probMg(m, l, ial[l], jal[l], al[l], bl[l]);
 	}
 	
-	
+
+	//start iterations of the multigrid cycle (tg_rec)
+	int startLevelTg = 0; 
 	for (int i = 0; i < iter; i++){
-		tg_rec(levelMax, m, size_ul, mu1, mu2, ial, 
-					jal, al, b, ul, rl, dl);
+		tg_rec( startLevelTg, levelMax, m, mu1, mu2, 
+				nl, ial, jal, al, bl, ul, rl, dl);
 		//print(res et u) + save
 	}
-	//
 
-	for (int j = 0; i < levelMax; i++){
-		free(ial[i]);
-		free(jal[i]);
-		free(al[i])
-		free(rl[i]);
-		free(dl[i]);
-		free(ul[i]);
+	free(nl);
+	for (int j = 0; j <= levelMax; j++){
+		free(ial[j]);
+		free(jal[j]);
+		free(al[j])
+		free(rl[j]);
+		free(dl[j]);
+		free(ul[j]);
 	}
 	
 
 }
 
 //ial liste de liste d'elem deja compute 
-int tg_rec(int level, int m, int *nl, int mu1, int mu2, int **ial, 
-					int **jal, double **al, double *b, double **ul, double **rl, double **dl){
+int tg_rec(int level, int levelMax, int m, int mu1, int mu2, 
+		   int *nl, int mu1, int mu2, int **ial, int **jal,
+		   double **al, double *b, double **ul, double **rl, double **dl){
 
 	
-	if (level != 0){
+	if (level < levelMax){
 		forwardGS(mu1, nl[level] , ial[level], jal[level], al[level], b[level], u[level], r[level], d[level]);
 		
 		//restrict r
@@ -75,7 +90,7 @@ int tg_rec(int level, int m, int *nl, int mu1, int mu2, int **ial,
 		computeRes(n, ial[level], jal[level], al[level], ul[level], bl[level], &rl[level]);
 		restrictR(m, level, rl[level],rl[level-1], m, nl[level]); //modify malloc init
 		//au dessus s'effecctue du haut du v vers le bas
-		tg_rec(level+1, nl, mu1, mu2, ial, jal, al, rl[level], ul, rl);//recursivité , ici important on repart avec A c = r
+		tg_rec(level+1, levelMax, m, mu1, mu2, nl, ial, jal, al, rl[level], ul, rl);//recursivité , ici important on repart avec A c = r
 		// on voit que ul est composé de u en 0 puis que des c puis en
 		// remontant on va applique les corrections aux corrections, r est composé du 
 		//'vrai residu en 0 pus des residu de residu etc
