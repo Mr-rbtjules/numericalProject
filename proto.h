@@ -40,7 +40,7 @@ void plot_static(double *x, int m, int level);
 
 //method.c
 int mg_method(int iter, int levelMax, int m);
-int allowGrids(int m, int levelMax, int **nl, int ***ial,
+int allocGrids(int m, int levelMax, int **nl, int ***ial,
                int ***jal, double ***al, double ***bl,
 			   double ***dl, double ***rl, double ***ul);
 

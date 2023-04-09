@@ -4,7 +4,7 @@
 
 
 
-int allowGrids(int m, int levelMax, int **nl, int ***ial,
+int allocGrids(int m, int levelMax, int **nl, int ***ial,
                int ***jal, double ***al, double ***bl,
 			   double ***dl, double ***rl, double ***ul){ /* *** var liste de liste et on acces la memoire donc 1 en plus */
 
@@ -28,7 +28,7 @@ int mg_method(int iter, int levelMax, int m){
 	
 	double *nl;
 
-	allowGrids(m, levelMax, &nl, &ial, &jal, &al, &bl, &bl, &dl, &rl, &ul);
+	allocGrids(m, levelMax, &nl, &ial, &jal, &al, &bl, &bl, &dl, &rl, &ul);
 
 	
 	for (int i = 0; i < level; i++){

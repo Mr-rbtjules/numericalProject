@@ -16,7 +16,7 @@
 
 int restrictR(int level, double *rp, double **rc, int m, int *nc){
     //level = 0 = ou on est ->1
-    // lvel -> level +1 
+    // lvel -> level +1
     
 
     //level -1 (prolonge donc monte dans la pyramyde)
