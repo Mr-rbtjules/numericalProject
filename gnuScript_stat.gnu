@@ -6,7 +6,7 @@ set view 40,60
 set pm3d
 unset surface
 
-set title 'Mode propre fondamental'
+
 set xlabel 'X'
 set ylabel 'Y'
 set zlabel 'Deplacement Max'
@@ -15,7 +15,7 @@ set zlabel 'Deplacement Max'
 
 splot 'coord_stat.dat' u 1:2:3 w l
 
-pause 5
+pause 10
 
 
 

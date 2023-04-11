@@ -17,15 +17,21 @@ prob                       V
 2.method
 -compute res               V
 
-changer restrict prol pr plus que *r et pas **r pareil pour nc ?
 
--gaussResL/u               
--add vect
+allocGridLevel             V
+allocGrids                 V
 
--stationnary iter
--back/forw
+-gaussResL/u               V  
+-add vect                  V
+
+-stationnary iter         V
+-back/forw                V
+
+
+implanter jacobi pourcoarse level
 
 -finir mg method
--tester
+-tester mg tg
+
 
 

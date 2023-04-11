@@ -30,14 +30,16 @@ int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx);
 int on_bound(int ix, int iy, int m);
 void computeHole(int *y0, int *y1, int *x0, int *x1, int m);
 //grid_corr.c
-int restrictR(int level, double *rp, double **rc, int m, int *nc);
-int prolongR(int level, double **up, double *uc, int m, int *np);
+int restrictR(int level, double *rp, double *rc, int m, int *nc);
+int prolongR(int level, double *up, double *uc, int m, int *np);
+int addProlCorrection(int level, double *up, double *uc, int m, int *np);
 int probMg(int m, int level, int *nl, int *ial,
            int *jal, double *al, double *b);
 int allocGridLevel(int m, int level, int *nl, int **ial,
                      int **jal, double **al, double **bl);
 //plot.c
 void plot_static(double *x, int m, int level);
+void plot_res(double *r, int m, int level);
 
 //method.c
 int allocGrids(int m, int levelMax, int **nl, int ***ial,
@@ -49,13 +51,14 @@ int allocLevel(int m, int level, int *nl, int ***ial,
 int computeRes(int n, int *ia, int *ja, double *a,
                     double *u, double *b, double *r);
 double computeResNorm(int n, int *ia, int *ja, double *a,
-                            double *u, double *b, double *r);
+                             double *b,double *u, double *r);
+double computeNorm(int n, double *v);
 int addVect(int n , double *v1, double *v2);
 int gaussResU(int n , int *iu, int *ju, double *u, double *x, double *b);
 int gaussResL(int n , int *il, int *jl, double *l, double *x, double *b);
 int stationaryIter(int iter, int n, int *ia, int *ja,
                    double *a, double *b, double *u, double *r, double *d, int forward);
-
+int addProlCorrection(int level, double *up, double *uc, int m, int *np);
 int backwardGS(int iter, int n, int *ia, int *ja, double *a, 
                double *b, double *u, double *r, double *d);
 
@@ -65,6 +68,19 @@ int forwardGS(int iter, int n, int *ia, int *ja, double *a,
 int tg_rec(int level, int levelMax, int m, int mu1,
            int mu2, int *nl, int **ial, int **jal,
 		   double **al, double **bl, double **ul, double **rl, double **dl);
+int lastStep(int startLevelTg, int m, int mu2, int *nl,
+				  int **ial, int **jal, double **al, double **bl, double **ul, double **rl, double **dl);
+int firstStep(int startLevelTg, int m, int mu1, int *nl,
+				  int **ial, int **jal, double **al, double **bl, double **ul, double **rl, double **dl);
+int initialization(int level, int *nl, int **ial, int **jal, double **al,
+						 double **bl, double **dl, double **rl, double **ul);
+int relax(int n, double *d);
+
+int solveAtCoarseLevel(int mode, int n, int *ia, int *ja, double *a, double *b, double *x);
+
+void printA(int n, int *ia, int *ja, double *a);
+void printU(int n, double *u);
+
 /*
 
 int mg_method(int iter, int levelMax, int m);
