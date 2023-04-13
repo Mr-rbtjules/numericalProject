@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 {
 
 
-mg_method(1000, 2, 120);
+mg_method(500, 2, 120);
 
 
 
