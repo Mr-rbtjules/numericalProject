@@ -24,14 +24,21 @@ allocGrids                 V
 -gaussResL/u               V  
 -add vect                  V
 
--stationnary iter         V
--back/forw                V
+-stationnary iter          V
+-back/forw                 V
 
 
 implanter jacobi pourcoarse level
 
--finir mg method
--tester mg tg
+-finir mg method           V
+-tester mg tg              V
 
+transformer mg en mg(init, u)
+
+-ajouter print param
+
+-betam
+-alpha
+-biconjgrad
 
 
