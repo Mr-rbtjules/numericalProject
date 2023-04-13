@@ -70,7 +70,7 @@ int restrictR(int level, double *rp, double *rc, int m, int *nc){
 
                     else{
                         //(*rc)[*nc] += 0.25 * rp[np] * SCALE_FACT; 
-                        rc[*nc] += 0.25 * computeBound((ixp+1)*hp,(iyp+1 -1)*hp) * SCALE_FACT;//si fct qui calcule chaque fois :juste coord sinon
+                        //rc[*nc] += 0.25 * computeBound((ixp+1)*hp,(iyp+1 -1)*hp) * SCALE_FACT;//si fct qui calcule chaque fois :juste coord sinon
                     }
 
                     //replissage de la ligne : voisin ouest 
@@ -81,7 +81,7 @@ int restrictR(int level, double *rp, double *rc, int m, int *nc){
                     }
                     else{
                         //(*rc)[*nc] += 0.25 * rp[np] * SCALE_FACT;
-                        rc[*nc] += 0.25 * computeBound((ixp+1-1)*hp,(iyp+1)*hp) * SCALE_FACT;
+                        //rc[*nc] += 0.25 * computeBound((ixp+1-1)*hp,(iyp+1)*hp) * SCALE_FACT;
                     }
 
                     int ind = np;
@@ -99,7 +99,7 @@ int restrictR(int level, double *rp, double *rc, int m, int *nc){
                     }
                     else{
                         //(*rc)[*nc] += 0.25 * rp[np] * SCALE_FACT;
-                        rc[*nc] += 0.25 * computeBound((ixp+1+1)*hp ,(iyp+1)*hp) * SCALE_FACT;
+                        //rc[*nc] += 0.25 * computeBound((ixp+1+1)*hp ,(iyp+1)*hp) * SCALE_FACT;
                         
                     }
 
@@ -111,7 +111,7 @@ int restrictR(int level, double *rp, double *rc, int m, int *nc){
                     }
                     else{
                         //(*rc)[*nc] += 0.25 * rp[np] * SCALE_FACT;
-                        rc[*nc] += 0.25 * computeBound((ixp+1)*hp, (iyp+1+1)*hp) * SCALE_FACT;
+                        //rc[*nc] += 0.25 * computeBound((ixp+1)*hp, (iyp+1+1)*hp) * SCALE_FACT;
                     }
                     // numéro de l'équation
                     
@@ -198,31 +198,31 @@ int addProlCorrection(int level, double *up, double *uc, int m, int *np){
 						ind = indice((ixp/2) - 1, (iyp/2)-1, y0c,y1c,x0c,x1c, nxc);//juste /2 -1 car point prol au milieu des 4 tjrs pair
                         up[*np] += 0.25 * uc[ind]; 
                     }
-                    else{
+                    /*else{
                         double bound = computeBound((ixp+1-1)*hp,(iyp+1-1)*hp);
                         
                         up[*np] += 0.25 * bound;
                        
-                    }
+                    }*/
                     //coin droit bas
                     if (check_se(ixp,iyp,y0p,y1p,x0p,x1p,nxp)){ //cond droit
                         ind = indice((ixp/2) ,(iyp/2)-1, y0c,y1c,x0c,x1c, nxc);
                         up[*np] += 0.25 * uc[ind];
                         
                     }
-                    else{
+                   /* else{
                         up[*np] += 0.25 * computeBound((ixp+1+1)*hp,(iyp+1-1)*hp);
-                    }
+                    }*/
                     //coin haut gauche
                     if (check_nw(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){ //cond gauche haut
                         ind = indice((ixp/2 - 1),(iyp/2), y0c,y1c,x0c,x1c, nxc);
                         up[*np] += 0.25 * uc[ind];
                     }
-                    else{
+                    /*else{
                         double bound = computeBound((ixp+1-1)*hp,(iyp + 1+1)*hp);
                         up[*np] += 0.25 * bound;
                         
-                    }
+                    }*/
                     //coin droit haut
                     
                     if (check_ne(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){ //coin droit
@@ -230,9 +230,9 @@ int addProlCorrection(int level, double *up, double *uc, int m, int *np){
                         up[*np] += 0.25 * uc[ind];
 
                     }
-                    else{
+                    /*else{
                         up[*np] += 0.25 * computeBound((ixp+1+1)*hp,(iyp+1+1)*hp);
-                    }
+                    }*/
                 }
 
 				//impair pair => somme haut + bas
@@ -244,17 +244,17 @@ int addProlCorrection(int level, double *up, double *uc, int m, int *np){
                         ind = indice((ixp/2),(iyp/2)-1, y0c,y1c,x0c,x1c, nxc);
                         up[*np] += 0.5 * uc[ind];
                     }
-                    else{
+                    /*else{
                         up[*np] += 0.5 * computeBound((ixp+1)*hp,(iyp+1-1)*hp);
-                    }
+                    }*/
                     //somme haut
                     if(check_nord(ixp,iyp,y0p,y1p,x0p,x1p,nxp)){
                         ind = indice((ixp/2),(iyp/2), y0c,y1c,x0c,x1c, nxc);
                         up[*np] += 0.5 * uc[ind]; //pas de nx/2+1 car point uc[nc] deja ligne du haut
                     }
-                    else{
+                    /*else{
                         up[*np] += 0.5 * computeBound((ixp+1)*hp,(iyp+1+1)*hp);
-                    }
+                    }*/
                 }
                 //pair impair 1/2 somme gauche droite
                 else if (iyp % 2 == 1 && ixp % 2 == 0){
@@ -264,23 +264,23 @@ int addProlCorrection(int level, double *up, double *uc, int m, int *np){
                     if (check_west(ixp,iyp,y0p,y1p,x0p,x1p,nxp)){
                         up[*np] += 0.5 * uc[nc - 1];
                     }
-                    else{
+                    /*else{
                         up[*np] += 0.5 * computeBound((ixp+1-1)*hp,(iyp+1)*hp);
-                    }
+                    }*/
 
                     //somme droit
                     //si pas a gauche d'un bord
                     if (check_est(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){
                         up[*np] += 0.5 * uc[nc]; //nc car deja +1 car type point precedent + 1
                     }
-                    else{
+                    /*else{
                         up[*np] += 0.5 * computeBound((ixp+1+1)*hp,(iyp+1)*hp);
-                    }  
+                    }*/  
                 }
                 //ligne impair  & col impair => elem identique
                 else if (iyp % 2 == 1 && ixp % 2 == 1){  //pour 1 meme ligne alterne entre type 1 et 2, commence par 1 finis par 1
 
-                    up[*np] = uc[nc];
+                    up[*np] += uc[nc];
                     nc += 1;       //=> 2 choses, pr point type 2 droite = nc gauche == nc-1
                     // et aussi que pour type 3 et 4 nc rpz point au dessus tt a gauche
                 }
@@ -339,8 +339,8 @@ int prolongR(int level, double *up, double *uc, int m, int *np){ //ici m de u pa
 	*np = 0;
 
 
-	int ind;
-	for (int iyp = 0; iyp < nxp; iyp++){
+	int ind; 
+	for (int iyp = 0; iyp < nxp; iyp+=1){
         //passage colonne suiv
         for (int ixp = 0; ixp < nxp; ixp++){      
 

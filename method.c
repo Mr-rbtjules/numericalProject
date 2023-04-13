@@ -205,7 +205,7 @@ int stationaryIter(int iter, int n, int *ia, int *ja,
 int backwardGS(int iter, int n, int *ia, int *ja, double *a,
 				double *b, double *u, double *r, double *d){
 
-	
+	printf("Backward GS\n");
 	stationaryIter(iter, n, ia, ja, a, b, u, r, d, 0);
 
 	return 0;
@@ -213,23 +213,24 @@ int backwardGS(int iter, int n, int *ia, int *ja, double *a,
 //penser a compute B que 1 fois dans le multigrid
 int forwardGS(int iter, int n, int *ia, int *ja, double *a,
 			    double *b, double *u, double *r, double *d){
-
+	printf("Forward GS\n");
 	//resoud Au = b avec iter iteration
 	stationaryIter(iter, n, ia, ja, a, b, u, r, d, 1);
-
 	return 0;
 }
 
 int symGS(int iter, double tol, int n, int *ia, int *ja, double *a,
 			    double *b, double *u, double *r, double *d){
-
+	printf("\n Sym gs initial res=  %lf\n", computeResNorm(n,ia,ja,a,b,u,r));
+								
 	if (iter){
 		int i = 0;
 		while (i < iter){
+			
 			forwardGS( 1, n, ia, ja, a, b, u, r, d);
       		backwardGS( 1, n, ia, ja, a, b, u, r, d);
 			i++;
-			if (tol > computeNorm(n,r)){
+			if (tol){//tol > computeNorm(n,r)){
 				i == iter;
 			}
 		}
@@ -240,6 +241,8 @@ int symGS(int iter, double tol, int n, int *ia, int *ja, double *a,
       		backwardGS( 1, n, ia, ja, a, b, u, r, d);
 		}
 	}
+	printf("\n Sym gs end res=  %lf\n", computeResNorm(n,ia,ja,a,b,u,r));
+
 	return 0;
 }
 
@@ -271,15 +274,16 @@ int tg_rec(int level, int levelMax, int m, int mu1,
 		//code en dessous s'effectue du bas vers le haut du v
 		//prolongR(level,ul[level-1], ul[level], m, nl );// direct ajoute la correction quasi r a faire juste enlver le malloc
 		
-		addProlCorrection(level, ul[level-1], ul[level], m, &(nl[level-1]) );//
+		addProlCorrection(level+1, ul[level], ul[level+1], m, &(nl[level]) );//
 		backwardGS(mu2, nl[level] , ial[level], jal[level], 
 					al[level], bl[level], ul[level], rl[level], dl[level]);
 		
-		
+		printf("aillzsedfbsgb\n\n");
 	}
 	else {
 		//solve coarse pblm
-		solveAtCoarseLevel(0, nl[level], ial[level], jal[level], al[level], rl[level], ul[level]);
+		printf("Solve at coarst level\n");
+		solveAtCoarseLevel(1, nl[level], ial[level], jal[level], al[level], bl[level], ul[level], rl[level], dl[level]);
 		//solve_umfpack(n, ial[level], jal[level], al[level], rl[level], ul[level]);
 	}
 	return 0;
@@ -288,18 +292,45 @@ int lastStep(int startLevelTg, int m, int mu2, int *nl,
 				  int **ial, int **jal, double **al, double **bl, double **ul, double **rl, double **dl){
 
 
-	addProlCorrection(startLevelTg, ul[startLevelTg-1], ul[startLevelTg], m, &(nl[startLevelTg-1]) );//
+	addProlCorrection(startLevelTg+1, ul[startLevelTg], ul[startLevelTg+1], m, &(nl[startLevelTg]) );//
+	printf("\n after solve and prol : %lf\n", computeResNorm(nl[startLevelTg],
+												ial[startLevelTg],
+												jal[startLevelTg],
+												al[startLevelTg],
+												bl[startLevelTg],
+												ul[startLevelTg],
+												rl[startLevelTg]));
+		
+	
 	backwardGS(mu2, nl[startLevelTg] , ial[startLevelTg], jal[startLevelTg], 
 					al[startLevelTg], bl[startLevelTg], ul[startLevelTg], rl[startLevelTg], dl[startLevelTg]);
-		
+	
+	printf("\n res : %lf\n", computeResNorm(nl[startLevelTg],
+												ial[startLevelTg],
+												jal[startLevelTg],
+												al[startLevelTg],
+												bl[startLevelTg],
+												ul[startLevelTg],
+												rl[startLevelTg]));
+
 	return 0;	
 }
 int firstStep(int startLevelTg, int m, int mu1, int *nl,
-				  int **ial, int **jal, double **al, double **bl, double **ul, double **rl, double **dl){
-
+				int **ial, int **jal, double **al, double **bl,
+				  double **ul, double **rl, double **dl){
+	printf("\n First Step\n");
 	forwardGS(mu1, nl[startLevelTg] , ial[startLevelTg], jal[startLevelTg],
 					al[startLevelTg], bl[startLevelTg], ul[startLevelTg], rl[startLevelTg], dl[startLevelTg]);//ici on utilise b pour stocker le residu de Ac=r et stock c dans u
+	
+	printf("\n after fgsres : %lf\n", computeResNorm(nl[startLevelTg],
+												ial[startLevelTg],
+												jal[startLevelTg],
+												al[startLevelTg],
+												bl[startLevelTg],
+												ul[startLevelTg],
+												rl[startLevelTg]));
 		
+
 		//restrict r : r-Ac stocker dans b !
 	computeRes(nl[startLevelTg], ial[startLevelTg], jal[startLevelTg],
 				al[startLevelTg], ul[startLevelTg], bl[startLevelTg], rl[startLevelTg]);
@@ -320,10 +351,10 @@ int mg_method(int iter, int levelMax, int m){
 	
 	double **bl; //attention aux autres b prc pt on les utilise pour autre
 	
-	int *nl;
+	int *nl; 
 
-	int mu1 = 1;
-	int mu2 = 1;
+	int mu1 = 3;
+	int mu2 = 3;
 
 	allocGrids(m, levelMax, &nl, &ial, &jal, &al, &bl, &dl, &rl, &ul);
 
@@ -340,17 +371,23 @@ int mg_method(int iter, int levelMax, int m){
 	int startLevelTg = 0; 
 
 	initialization(startLevelTg, nl, ial, jal, al, bl, dl, rl, ul);
+
 	for (int i = 0; i < iter; i++){
 		//initialisation ici ?
+		
 		firstStep(startLevelTg, m, mu1, nl,
 				  ial, jal, al, bl, ul, rl, dl);
-		tg_rec( startLevelTg-1, levelMax, m, mu1, mu2, 
+		
+		tg_rec( startLevelTg+1, levelMax, m, mu1, mu2, 
 				nl, ial, jal, al, rl, ul, bl, dl);
 		lastStep(startLevelTg, m, mu2, nl,
 				  ial, jal, al, bl, ul, rl, dl);
 		//print(res et u) + save
+		
+		
+		
 	}
-
+	plot_static(ul[startLevelTg], m, startLevelTg);
 	free(nl);
 	for (int j = 0; j <= levelMax; j++){
 		free(ial[j]);
@@ -367,10 +404,13 @@ int mg_method(int iter, int levelMax, int m){
 
 
 
-int solveAtCoarseLevel(int mode, int n, int *ia, int *ja, double *a, double *b, double *x){
+int solveAtCoarseLevel(int mode, int n, int *ia, int *ja, double *a, double *b, double *u, double *r, double *d){
 
 	if (mode == 0){
-		solve_umfpack(n, ia, ja, a, b, x);
+		solve_umfpack(n, ia, ja, a, b, u);
+	}
+	else {
+		symGS(1, 0, n, ia,ja,a,b,u,r,d);
 	}
 
 }
@@ -385,7 +425,13 @@ int initialization(int level, int *nl, int **ial, int **jal, double **al,
 	for (int i=0; i< nl[level]; i++){
 		ul[level][i] = 0; 
 	}
-	
+	printf("\n initial res : %lf\n", computeResNorm(nl[level],
+												ial[level],
+												jal[level],
+												al[level],
+												bl[level],
+												ul[level],
+												rl[level]));
 	return 0;
 }
 
@@ -441,63 +487,7 @@ void printA(int n, int *ia, int *ja, double *a){
 
 
 
-
-
 /*
-int mg_method(int iter, int levelMax, int m){
-	//initit memory and pointers
-	//compute all the coarse matrix and nl
-	int **ial; //liste donc chaque elem pointe vers 1 matrice d'un certain level (ici matrice == liste)
-	int **jal;
-	double **al;
-	double **rl;
-	double **ul;
-	double **dl;
-	
-	double **bl; //attention aux autres b prc pt on les utilise pour autre
-	
-	double *nl;
-
-	bballocGrids(m, levelMax, &nl, &ial, &jal, &al, &bl, &bl, &dl, &rl, &ul);
-
-	//precomputation of all Ac and bc
-
-	for (int l = 0; l <= levelMax; l++){
-		
-		probMg(m, l, ial[l], jal[l], al[l], bl[l]);
-
-	}
-	
-
-	//start iterations of the multigrid cycle (tg_rec)
-	int startLevelTg = 0; 
-
-	initialization(startLevelTg, nl, ial, jal, al, bl, dl, rl, ul);
-	for (int i = 0; i < iter; i++){
-		
-		tg_rec( startLevelTg, levelMax, m, mu1, mu2, 
-				nl, ial, jal, al, bl, ul, rl, dl);
-		//print(res et u) + save
-	}
-
-	free(nl);
-	for (int j = 0; j <= levelMax; j++){
-		free(ial[j]);
-		free(jal[j]);
-		free(al[j]);
-		free(rl[j]);
-		free(dl[j]);
-		free(ul[j]);
-	}
-	
-
-}
-
-
-
-
-
-
 
 
 

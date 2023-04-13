@@ -62,6 +62,7 @@ int addProlCorrection(int level, double *up, double *uc, int m, int *np);
 int backwardGS(int iter, int n, int *ia, int *ja, double *a, 
                double *b, double *u, double *r, double *d);
 
+int mg_method(int iter, int levelMax, int m);
 int forwardGS(int iter, int n, int *ia, int *ja, double *a,
               double *b, double *u, double *r, double *d);
               
@@ -76,8 +77,7 @@ int initialization(int level, int *nl, int **ial, int **jal, double **al,
 						 double **bl, double **dl, double **rl, double **ul);
 int relax(int n, double *d);
 
-int solveAtCoarseLevel(int mode, int n, int *ia, int *ja, double *a, double *b, double *x);
-
+int solveAtCoarseLevel(int mode, int n, int *ia, int *ja, double *a, double *b, double *u, double *r, double *d);
 void printA(int n, int *ia, int *ja, double *a);
 void printU(int n, double *u);
 
