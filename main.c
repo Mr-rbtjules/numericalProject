@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 {
 
 
-//mg_method(500, 2, 120);
+mg_method(500, 2, 120);
 
 
 
@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
 	}*/
 	
  
-   
+   /*
 
   int m = 120; //  >= 13 et impaire pour la restriction et conserver distance par rapport au bords
   int level = 0; //level 1 min 26 , 2 52,3 104, level max 6-7
@@ -80,6 +80,8 @@ allocGridLevel(m, level, &n, &ia, &ja, &a, &b);
    
   free(ia); free(ja); free(a); free(b); free(x);
   
+
+  */
   return 0;
 }
 
