@@ -83,31 +83,38 @@ int initialization(int level, int *nl, int **ial, int **jal, double **al,
 	for (int i=0; i< nl[level]; i++){
 		ul[level][i] = 0; 
 	}
-	printf("\n initial res : %lf\n", computeResNorm(nl[level],
-												ial[level],
-												jal[level],
-												al[level],
-												bl[level],
-												ul[level],
-												rl[level]));
+	if (EXPLICIT){
+		printf("\n initial res : %lf\n", computeResNorm(nl[level],
+														ial[level],
+														jal[level],
+														al[level],
+														bl[level],
+														ul[level],
+														rl[level]));
+	}
+	
 	return 0;
 }
 
 int firstStep(int startLevelTg, int m, int mu1, int *nl,
 				int **ial, int **jal, double **al, double **bl,
 				  double **ul, double **rl, double **dl){
-	printf("\n First Step\n");
+
+	if (EXPLICIT){ printf("\n First Step\n"); }
+
 	forwardGS(mu1, nl[startLevelTg] , ial[startLevelTg], 
 			  jal[startLevelTg], al[startLevelTg], bl[startLevelTg],
 			  ul[startLevelTg], rl[startLevelTg], dl[startLevelTg]);//ici on utilise b pour stocker le residu de Ac=r et stock c dans u
 	
-	printf("\n after fgsres : %lf\n", computeResNorm(nl[startLevelTg],
-												ial[startLevelTg],
-												jal[startLevelTg],
-												al[startLevelTg],
-												bl[startLevelTg],
-												ul[startLevelTg],
-												rl[startLevelTg]));
+	if (EXPLICIT){
+		printf("\n after fgsres : %lf\n", computeResNorm(nl[startLevelTg],
+														ial[startLevelTg],
+														jal[startLevelTg],
+														al[startLevelTg],
+														bl[startLevelTg],
+														ul[startLevelTg],
+														rl[startLevelTg]));
+	}
 		//restrict r : r-Ac stocker dans b !
 	computeRes(nl[startLevelTg], ial[startLevelTg],
 			   jal[startLevelTg], al[startLevelTg], 
@@ -156,7 +163,7 @@ int tg_rec(int level, int levelMax, int m, int mu1,
 	}
 	else {
 		//solve coarse pblm
-		printf("Solve at coarst level\n");
+		if (EXPLICIT) {printf("Solve at coarst level\n");}
 		solveAtCoarseLevel(MODE, nl[level], ial[level], jal[level], al[level],
 						   		bl[level], ul[level], rl[level], dl[level]);
 	}
@@ -168,24 +175,28 @@ int lastStep(int startLevelTg, int m, int mu2,
 
 	addProlCorrection(startLevelTg+1, ul[startLevelTg], 
 					  ul[startLevelTg+1], m, &(nl[startLevelTg]));
-	printf("\n after solve and prol : %lf\n", computeResNorm(nl[startLevelTg],
-															 ial[startLevelTg],
-															 jal[startLevelTg],
-															 al[startLevelTg],
-															 bl[startLevelTg],
-															 ul[startLevelTg],
-															 rl[startLevelTg]));
+	if (EXPLICIT){
+		printf("\n after solve and prol res: %lf\n", computeResNorm(nl[startLevelTg],
+																ial[startLevelTg],
+																jal[startLevelTg],
+																al[startLevelTg],
+																bl[startLevelTg],
+																ul[startLevelTg],
+																rl[startLevelTg]));
+	}
 	backwardGS(mu2, nl[startLevelTg] , ial[startLevelTg], 
 			   jal[startLevelTg], al[startLevelTg], bl[startLevelTg], 
 			   ul[startLevelTg], rl[startLevelTg], dl[startLevelTg]);
 	
-	printf("\n res : %lf\n", computeResNorm(nl[startLevelTg],
-											ial[startLevelTg],
-											jal[startLevelTg],
-											al[startLevelTg],
-											bl[startLevelTg],
-											ul[startLevelTg],
-											rl[startLevelTg]));
+	if (EXPLICIT){
+		printf("\n after backward res : %lf\n", computeResNorm(nl[startLevelTg],
+															ial[startLevelTg],
+															jal[startLevelTg],
+															al[startLevelTg],
+															bl[startLevelTg],
+															ul[startLevelTg],
+															rl[startLevelTg]));
+	}
 	return 0;	
 }
 
@@ -389,13 +400,24 @@ int stationaryIter(int iter, int n, int *ia, int *ja,
 int solveAtCoarseLevel(int mode, int n, int *ia, int *ja, double *a, double *b, double *u, double *r, double *d){
 
 	if (mode == 0){
+		if (EXPLICIT){
+			printf("using umfpack\n");	
+		}
 		solve_umfpack(n, ia, ja, a, b, u);
 	}
 	else if (mode == 1) {
+		
+		if (EXPLICIT){
+			printf("using symGS\n");	
+		}
 		symGS(1, 0, n, ia,ja,a,b,u,r,d);
 	}
 	else {
-
+		if (EXPLICIT){
+			printf("using jacobi\n");	
+		}
+		jacobiIter(1,0, n,ia,ja,a,b,u,r,d);
+		
 	}
 
 }
@@ -422,7 +444,9 @@ int symGS(int iter, double tol, int n, int *ia, int *ja, double *a,
       		backwardGS( 1, n, ia, ja, a, b, u, r, d);
 		}
 	}
-	printf("\n Sym gs end res=  %lf\n", computeResNorm(n,ia,ja,a,b,u,r));
+	if (EXPLICIT){
+		printf("\n Sym gs end res=  %lf\n", computeResNorm(n,ia,ja,a,b,u,r));
+	}
 
 	return 0;
 }
@@ -472,9 +496,12 @@ int allocLevel(int m, int level, int *nl, int ***ial,
         return 1;
     }
 
-    printf("\n Alloc level %d : hl = %lf nl ",level, hl);
-    printf(" = %d nnzl = %d nxl = %d \n", nl[level], nnzl, nxl);
-    printf("x0l = %d x1l = %d y0l = %d y1l = %d \n", x0l, x1l, y0l, y1l);
+	if (EXPLICIT){
+		printf("\n Alloc level %d : hl = %lf nl ",level, hl);
+    	printf(" = %d nnzl = %d nxl = %d \n", nl[level], nnzl, nxl);
+    	printf("x0l = %d x1l = %d y0l = %d y1l = %d \n", x0l, x1l, y0l, y1l);
+	}
+    
 
 
     return 0;
