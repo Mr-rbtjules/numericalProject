@@ -199,31 +199,34 @@ int lastStep(int startLevelTg, int m, int mu2,
 	addProlCorrection(startLevelTg+1, ul[startLevelTg], 
 					  ul[startLevelTg+1], m, &(nl[startLevelTg]));
 	if (EXPLICIT){
-		printf("\n after solve and prol res: %lf\n", computeResNorm(nl[startLevelTg],
-																ial[startLevelTg],
-																jal[startLevelTg],
-																al[startLevelTg],
-																bl[startLevelTg],
-																ul[startLevelTg],
-																rl[startLevelTg]));
+		double res = computeResNorm(nl[startLevelTg],
+									ial[startLevelTg],
+									jal[startLevelTg],
+									al[startLevelTg],
+									bl[startLevelTg],
+									ul[startLevelTg],
+									rl[startLevelTg]);
+		printf("\n after solve and prol res: %lf\n", res);
 	}
 	backwardGS(mu2, nl[startLevelTg] , ial[startLevelTg], 
 			   jal[startLevelTg], al[startLevelTg], bl[startLevelTg], 
 			   ul[startLevelTg], rl[startLevelTg], dl[startLevelTg]);
 	
 	if (EXPLICIT){
-		printf("\n after backward res : %lf\n", computeResNorm(nl[startLevelTg],
-															ial[startLevelTg],
-															jal[startLevelTg],
-															al[startLevelTg],
-															bl[startLevelTg],
-															ul[startLevelTg],
-															rl[startLevelTg]));
+		double res = computeResNorm(nl[startLevelTg],
+									ial[startLevelTg],
+									jal[startLevelTg],
+									al[startLevelTg],
+									bl[startLevelTg],
+									ul[startLevelTg],
+									rl[startLevelTg]);
+		printf("\n after backward res : %lf\n", res);
 	}
 	return 0;	
 }
 
-int computeRes(int n, int *ia, int *ja, double *a, double *u, double *b, double *r){
+int computeRes(int n, int *ia, int *ja, double *a, 
+			   		double *u, double *b, double *r){
 	
 	//r = b -Au
 	int i = 0;
@@ -255,7 +258,8 @@ double computeNorm(int n, double *v){
 	return sqrt(vn);
 }
 
-double computeResNorm(int n, int *ia, int *ja, double *a, double *b, double *u,  double *r){
+double computeResNorm(int n, int *ia, int *ja, double *a, 
+						double *b, double *u,  double *r){
 
 	double rn = 0;
 
@@ -380,7 +384,8 @@ int stationaryIter(int iter, int n, int *ia, int *ja,
 					 b, u, r, d, forward);
 	}
 	else{
-		//initialiser verifier ? on initialise pas car considere que deja fait
+		//initialiser verifier ? on initialise pas car considere que 
+		//deja fait
 	}
 	//rm
 	computeRes(n, ia, ja, a, u, b, r);
@@ -403,7 +408,8 @@ int stationaryIter(int iter, int n, int *ia, int *ja,
 	return 0;
 }
 
-int solveAtCoarseLevel(int mode, int n, int *ia, int *ja, double *a, double *b, double *u, double *r, double *d){
+int solveAtCoarseLevel(int mode, int n, int *ia, int *ja, double *a, 
+						double *b, double *u, double *r, double *d){
 
 	if (mode == 0){
 		if (EXPLICIT){
@@ -530,7 +536,8 @@ int relax(int n, double *d){
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
-int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *bl){
+int probMg(int m, int level, int *nl, 
+		   int *ial, int *jal, double *al, double *bl){
     //ici level == celui dont on veut calculer A et b
     //mémoire deja allouée
     double hl, invh2l;
@@ -569,7 +576,10 @@ int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *bl
                     nnzl++;
                 }
                 else{
-                    bl[ind] += computeBound((ixl+ 1)*hl, (iyl + 1 -1)*hl) * invh2l; 
+					double x = (ixl+ 1)*hl;
+					double y = (iyl + 1 -1)*hl;
+					double bound = computeBound(x, y);
+                    bl[ind] += bound * invh2l; 
                 }
 
                 //replissage de la ligne : voisin ouest 
@@ -581,7 +591,10 @@ int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *bl
                     nnzl++;
                 }
                 else{
-                    bl[ind] += computeBound((ixl + 1 - 1)*hl, (iyl + 1)*hl) * invh2l;
+					double x = (ixl + 1 - 1)*hl;
+					double y = (iyl + 1)*hl;
+					double bound = computeBound( x, y);
+                    bl[ind] += bound * invh2l;
                 }
                 
 
@@ -594,13 +607,16 @@ int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *bl
                 // replissage de la ligne : voisin est
                 //si pas a gauche d'un bord
                 
-                if ( check_est(ixl,iyl,y0l,y1l,x0l,x1l,nxl) ){
+                if ( check_est(ixl,iyl,y0l,y1l,x0l,x1l,nxl)){
                     al[nnzl] = -invh2l;
                     jal[nnzl] = ind + 1;
                     nnzl++;
                 }
                 else{
-                    bl[ind] += computeBound((ixl + 1 +1)*hl, (iyl + 1)*hl) * invh2l;
+					double x = (ixl + 1 +1)*hl;
+					double y = (iyl + 1)*hl;
+					double bound = computeBound(x, y);
+                    bl[ind] += bound * invh2l;
                 }
 
                 // replissage de la ligne : voisin nord
@@ -612,7 +628,10 @@ int probMg(int m, int level, int *nl, int *ial, int *jal, double *al, double *bl
                         nnzl++;
                 }
                 else{
-                    bl[ind] += computeBound((ixl + 1)*hl, (iyl + 1 +1)*hl) * invh2l;
+					double x = (ixl + 1)*hl;
+					double y = (iyl + 1 +1)*hl;
+					double bound = computeBound(x, y);
+                    bl[ind] += bound * invh2l;
                 }
                 // numéro de l'équation
                 ind += 1;
@@ -881,12 +900,14 @@ int restrictR(int level, double *rp, double *rc, int m, int *nc){
     //level -1 (prolonge donc monte dans la pyramyde)
     double hp, invh2p;
     int x0p,x1p,y0p,y1p, nxp, np, nnzp;
-    computeParamLevel(m, level, &hp,&invh2p,&y0p,&y1p,&x0p,&x1p,&nxp, &np, &nnzp);
+    computeParamLevel(m, level, &hp,&invh2p,&y0p,
+					  &y1p,&x0p,&x1p,&nxp, &np, &nnzp);
     
     //level ou on va =level+1
     double hc, invh2c;
     int x0c,x1c,y0c,y1c, nxc, nnzc;
-    computeParamLevel(m, level+1, &hc,&invh2c,&y0c,&y1c,&x0c,&x1c,&nxc, nc, &nnzc);
+    computeParamLevel(m, level+1, &hc,&invh2c,&y0c,
+					  &y1c,&x0c,&x1c,&nxc, nc, &nnzc);
     
     if (EXPLICIT){
 		printf("\n Restrict -level %d:  hp = %lf ", level, hp);
@@ -905,6 +926,7 @@ int restrictR(int level, double *rp, double *rc, int m, int *nc){
     int nc_save = *nc;
 	*nc = 0;
 
+	int ind;
 	for (int iyp = 0; iyp < nxp; iyp++){
         //passage colonne suiv
         for (int ixp = 0; ixp < nxp; ixp++){      
@@ -920,7 +942,7 @@ int restrictR(int level, double *rp, double *rc, int m, int *nc){
                     // + verification si pas au dessus d'un bord
                     
                     if (check_sud(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){
-                        int ind = indice(ixp,iyp-1,y0p,y1p,x0p,x1p, nxp);
+                        ind = indice(ixp,iyp-1,y0p,y1p,x0p,x1p, nxp);
                         rc[*nc] += 0.25 * rp[ind] * SCALE_FACT;
                     }    
 
@@ -932,7 +954,7 @@ int restrictR(int level, double *rp, double *rc, int m, int *nc){
                     //replissage de la ligne : voisin ouest 
                     //si pas a droite d'un bord
                     if (check_west(ixp,iyp,y0p,y1p,x0p,x1p,nxp)){
-                        int ind = np -1;
+                        ind = np -1;
                         rc[*nc] += 0.25 * rp[ind] * SCALE_FACT;
                     }
                     else{
@@ -940,7 +962,7 @@ int restrictR(int level, double *rp, double *rc, int m, int *nc){
                         //rc[*nc] += 0.25 * computeBound((ixp+1-1)*hp,(iyp+1)*hp) * SCALE_FACT;
                     }
 
-                    int ind = np;
+                    ind = np;
                     rc[*nc] += rp[ind] * SCALE_FACT;
                    
                     // replissage de la ligne : élém. diagonal
@@ -949,7 +971,7 @@ int restrictR(int level, double *rp, double *rc, int m, int *nc){
                     // replissage de la ligne : voisin est
                     //si pas a gauche d'un bord
                     if (check_est(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){
-                        int ind = np +1;
+                        ind = np +1;
                         rc[*nc] += 0.25 * rp[ind] * SCALE_FACT;
                          
                     }
@@ -962,8 +984,8 @@ int restrictR(int level, double *rp, double *rc, int m, int *nc){
                     // replissage de la ligne : voisin nord
                     //si pas en dessous d'un bord
                     if ( check_nord(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){
-
-                        rc[*nc] += 0.25 * rp[indice(ixp,iyp+1,y0p,y1p,x0p,x1p, nxp)] * SCALE_FACT;
+						ind = indice(ixp,iyp+1,y0p,y1p,x0p,x1p, nxp);
+                        rc[*nc] += 0.25 * rp[ind] * SCALE_FACT;
                     }
                     else{
                         //(*rc)[*nc] += 0.25 * rp[np] * SCALE_FACT;
@@ -1045,7 +1067,8 @@ int addProlCorrection(int level, double *up, double *uc, int m, int *np){
                     
                     if (check_sw(ixp,iyp,y0p,y1p,x0p,x1p,nxp)){ // question est ce que prolong peut etre domaine et coarse ds un board ? non ca depend que de p
                         
-						ind = indice((ixp/2) - 1, (iyp/2)-1, y0c,y1c,x0c,x1c, nxc);//juste /2 -1 car point prol au milieu des 4 tjrs pair
+						ind = indice((ixp/2)-1,(iyp/2)-1, 
+									 y0c,y1c,x0c,x1c, nxc);//juste /2 -1 car point prol au milieu des 4 tjrs pair
                         up[*np] += 0.25 * uc[ind]; 
                     }
                     /*else{
@@ -1056,7 +1079,8 @@ int addProlCorrection(int level, double *up, double *uc, int m, int *np){
                     }*/
                     //coin droit bas
                     if (check_se(ixp,iyp,y0p,y1p,x0p,x1p,nxp)){ //cond droit
-                        ind = indice((ixp/2) ,(iyp/2)-1, y0c,y1c,x0c,x1c, nxc);
+                        ind = indice((ixp/2) ,(iyp/2) - 1, 
+									 y0c,y1c,x0c,x1c, nxc);
                         up[*np] += 0.25 * uc[ind];
                         
                     }
@@ -1065,7 +1089,8 @@ int addProlCorrection(int level, double *up, double *uc, int m, int *np){
                     }*/
                     //coin haut gauche
                     if (check_nw(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){ //cond gauche haut
-                        ind = indice((ixp/2 - 1),(iyp/2), y0c,y1c,x0c,x1c, nxc);
+                        ind = indice((ixp/2 - 1),(iyp/2), 
+									 y0c,y1c,x0c,x1c, nxc);
                         up[*np] += 0.25 * uc[ind];
                     }
                     /*else{
@@ -1091,7 +1116,8 @@ int addProlCorrection(int level, double *up, double *uc, int m, int *np){
                     //somme bas
                     if (check_sud(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){
                        
-                        ind = indice((ixp/2),(iyp/2)-1, y0c,y1c,x0c,x1c, nxc);
+                        ind = indice((ixp/2),(iyp/2)-1,
+									 y0c,y1c,x0c,x1c, nxc);
                         up[*np] += 0.5 * uc[ind];
                     }
                     /*else{
