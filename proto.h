@@ -44,6 +44,9 @@ void plot_res(double *r, int m, int level);
 
 //method.c
 int mg_method(int iter, int levelMax, int m); 
+int mg_iter(int iter, int levelMax, int m, int **ial,
+			int **jal,double **al,double **rl,double **ul,
+			double **dl,double **bl,int *nl,int mu1,int mu2);
 int initialization(int level, int *nl, int **ial, int **jal, double **al,
 						 double **bl, double **dl, double **rl, double **ul);
 int firstStep(int startLevelTg, int m, int mu1, 
@@ -86,6 +89,7 @@ double computeResNorm(int n, int *ia, int *ja, double *a,
 double computeNorm(int n, double *v);
 int addVect(int n , double *v1, double *v2);
    
-
+int allocProb(int m, int *n, int **ia, int **ja, 
+     		  double **a, double **b, double **u, double **r);
 
 #endif

@@ -12,8 +12,11 @@
 
 #define RELAX 1 //
 #define MODE 1
-#define EXPLICIT 1// add time launch when 0
+#define EXPLICIT 0// add time launch when 0
 #define ITERCORE 2
+#define CHRONO 1
+#define LOAD 1
+
 
 /*
         level 0
@@ -61,35 +64,35 @@ int mg_method(int iter, int levelMax, int m){
 	for (int l = 0; l <= levelMax; l++){
 		
 		probMg(m, l, &(nl[l]), ial[l], jal[l], al[l], bl[l]);
-
 	}
 	
-
-	//start iterations of the multigrid cycle (tg_rec)
 	int startLevelTg = 0; 
 
+	//u0 = 0
 	initialization(startLevelTg, nl, ial, jal, al, bl, dl, rl, ul);
-
-	for (int i = 0; i < iter; i++){
-		//initialisation ici ?
-		
-		firstStep(startLevelTg, m, mu1, nl,
-				  ial, jal, al, bl, ul, rl, dl);
-		
-		tg_rec( startLevelTg+1, levelMax, m, mu1, mu2, 
-				nl, ial, jal, al, rl, ul, bl, dl);
-		lastStep(startLevelTg, m, mu2, nl,
-				  ial, jal, al, bl, ul, rl, dl);
-		//print(res et u) + save
-		
-		
-		
+	if (LOAD){
+		printf("\n Load percentage : \n");
 	}
-
+	//start iterations of the multigrid cycle (tg_rec)
+	double t1 = mytimer();
+  if( mg_iter(iter, levelMax, m,ial,jal,al,rl,ul,dl,bl,nl,mu1,mu2)){
+	return 1;
+  }
+  double t2 = mytimer();
+  if (CHRONO){
+	printf("\nTemps de solution multigrid method (CPU): %5.1f sec\n",t2-t1);
+  }
+  printf("\nfinal res = %lf\n", computeResNorm(nl[startLevelTg],
+									ial[startLevelTg],
+									jal[startLevelTg],
+									al[startLevelTg],
+									bl[startLevelTg],
+									ul[startLevelTg],
+									rl[startLevelTg]));
+  
+	
 	plot_res(rl[startLevelTg], m, startLevelTg);
-	//printf("\n Start smoothing \n");
-	//symGS(5,0, nl[0],ial[0], jal[0], al[0], bl[0], ul[0], rl[0], dl[0]);
-	//plot_res(rl[startLevelTg], m, startLevelTg);
+	
 	free(nl);
 	for (int j = 0; j <= levelMax; j++){
 		free(ial[j]);
@@ -98,6 +101,32 @@ int mg_method(int iter, int levelMax, int m){
 		free(rl[j]);
 		free(dl[j]);
 		free(ul[j]);
+	}
+	return 0;
+}
+
+
+int mg_iter(int iter, int levelMax, int m, int **ial,
+			int **jal,double **al,double **rl,double **ul,
+			double **dl,double **bl,int *nl,int mu1,int mu2){
+	
+	int startLevelTg = 0;
+	for (int i = 0; i < iter; i++){
+		//initialisation ici ?
+		if (LOAD){
+			printf("   %.3f   ", (double)(i+1)/iter);
+        	fflush(stdout);
+			printf("\r");
+		}
+		firstStep(startLevelTg, m, mu1, nl,
+				  ial, jal, al, bl, ul, rl, dl);
+		
+		tg_rec( startLevelTg+1, levelMax, m, mu1, mu2, 
+				nl, ial, jal, al, rl, ul, bl, dl);
+		lastStep(startLevelTg, m, mu2, nl,
+				  ial, jal, al, bl, ul, rl, dl);
+		//print(res et u) + save	
+
 	}
 	return 0;
 }
@@ -156,6 +185,7 @@ int tg_rec(int level, int levelMax, int m, int mu1,
 		
 		//des le level 1 on stock pas u2 mais c2 puis 'deviennent des u lorsqu'on ajoute la correction en remontant
 		//pblm tt en haut smoothing Au=b mais en dessous sm Ac = r pareil computeres
+	
 	if (level < levelMax){
 
 		//mu1 smoothing iterations
@@ -516,6 +546,35 @@ int allocLevel(int m, int level, int *nl, int ***ial,
     return 0;
 }
 
+int allocProb(int m, int *n, int **ia, int **ja, 
+     		  double **a, double **b, double **u, double **r){
+
+    double hl, invh2l;
+    int x0l,x1l,y0l,y1l, nxl, nnzl;
+    computeParamLevel(m, 0, &hl,&invh2l,&y0l,&y1l,
+					  &x0l,&x1l,&nxl, n, &nnzl);
+    
+    (*ia) = malloc((*n + 1) * sizeof(int));
+    (*ja) = malloc(nnzl * sizeof(int));
+    (*a) = malloc(nnzl * sizeof(double));
+    (*b) = malloc(*n * sizeof(double));
+    (*u) = malloc(*n * sizeof(double));
+    (*r) = malloc(*n * sizeof(double));
+    
+    if (*b == NULL || *ia == NULL || *ja == NULL || 
+        *a == NULL || *r == NULL || *u == NULL){
+        printf("\n ERREUR : pas assez de mémoire pour générer le système\n");
+        return 1;
+    }
+	if (1){
+		printf("\n Alloc level %d : hl = %lf nl ",0, hl);
+    	printf(" = %d nnzl = %d nxl = %d \n", *n, nnzl, nxl);
+    	printf("x0l = %d x1l = %d y0l = %d y1l = %d \n", x0l, x1l, y0l, y1l);
+	}
+    return 0;
+}
+
+
 int relax(int n, double *d){
 
 	for (int i=0; i < n; i++){
@@ -576,10 +635,12 @@ int probMg(int m, int level, int *nl,
                     nnzl++;
                 }
                 else{
-					double x = (ixl+ 1)*hl;
-					double y = (iyl + 1 -1)*hl;
-					double bound = computeBound(x, y);
-                    bl[ind] += bound * invh2l; 
+					if (level == 0){
+						double x = (ixl+ 1)*hl;
+						double y = (iyl + 1 -1)*hl;
+						double bound = computeBound(x, y);
+                    	bl[ind] += bound * invh2l; 
+					}
                 }
 
                 //replissage de la ligne : voisin ouest 
@@ -591,10 +652,13 @@ int probMg(int m, int level, int *nl,
                     nnzl++;
                 }
                 else{
-					double x = (ixl + 1 - 1)*hl;
-					double y = (iyl + 1)*hl;
-					double bound = computeBound( x, y);
-                    bl[ind] += bound * invh2l;
+					if (level == 0){
+						double x = (ixl + 1 - 1)*hl;
+						double y = (iyl + 1)*hl;
+						double bound = computeBound( x, y);
+                    	bl[ind] += bound * invh2l;
+					}
+					
                 }
                 
 
@@ -613,10 +677,12 @@ int probMg(int m, int level, int *nl,
                     nnzl++;
                 }
                 else{
-					double x = (ixl + 1 +1)*hl;
-					double y = (iyl + 1)*hl;
-					double bound = computeBound(x, y);
-                    bl[ind] += bound * invh2l;
+					if (level == 0){
+						double x = (ixl + 1 +1)*hl;
+						double y = (iyl + 1)*hl;
+						double bound = computeBound(x, y);	
+						bl[ind] += bound * invh2l;
+					}
                 }
 
                 // replissage de la ligne : voisin nord
@@ -628,10 +694,13 @@ int probMg(int m, int level, int *nl,
                         nnzl++;
                 }
                 else{
-					double x = (ixl + 1)*hl;
-					double y = (iyl + 1 +1)*hl;
-					double bound = computeBound(x, y);
-                    bl[ind] += bound * invh2l;
+					if (level == 0){
+						double x = (ixl + 1)*hl;
+						double y = (iyl + 1 +1)*hl;
+						double bound = computeBound(x, y);
+						bl[ind] += bound * invh2l;
+					}
+
                 }
                 // numéro de l'équation
                 ind += 1;
