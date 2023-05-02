@@ -11,11 +11,13 @@
 
 
 #define RELAX 1 //
-#define MODE 1
-#define EXPLICIT 0// add time launch when 0
+#define MODE 2   //0 umfpack , 1 sygms, 2 jacobi
+#define EXPLICIT 1
+#define MU1 3
+#define MU2 MU1
 #define ITERCORE 2
 #define CHRONO 1
-#define LOAD 1
+#define LOAD 0
 
 
 /*
@@ -54,8 +56,8 @@ int mg_method(int iter, int levelMax, int m){
 	
 	int *nl; 
 
-	int mu1 = 4;
-	int mu2 = 4;
+	int mu1 = MU1;
+	int mu2 = MU2;
 
 	allocGrids(m, levelMax, &nl, &ial, &jal, &al, &bl, &dl, &rl, &ul);
 
@@ -442,24 +444,28 @@ int solveAtCoarseLevel(int mode, int n, int *ia, int *ja, double *a,
 						double *b, double *u, double *r, double *d){
 
 	if (mode == 0){
+		
+		solve_umfpack(n, ia, ja, a, b, u);
 		if (EXPLICIT){
 			printf("using umfpack\n");	
+			printf("\n umfpack end res(de Ac=r)=  %lf\n", computeResNorm(n,ia,ja,a,b,u,r));
+
 		}
-		solve_umfpack(n, ia, ja, a, b, u);
 	}
 	else if (mode == 1) {
-		
-		if (EXPLICIT){
-			printf("using symGS\n");	
-		}
 		symGS(ITERCORE, 0, n, ia,ja,a,b,u,r,d);
+		if (EXPLICIT){
+			printf("using symGS\n");
+			printf("\n symGS end res(de Ac=r)=  %lf\n", computeResNorm(n,ia,ja,a,b,u,r));	
+		}
 	}
 	else {
+		
+		jacobiIter(ITERCORE,0, n,ia,ja,a,b,u,r,d);
 		if (EXPLICIT){
 			printf("using jacobi\n");	
+			printf("\n jacobi end res(de Ac=r)=  %lf\n", computeResNorm(n,ia,ja,a,b,u,r));	
 		}
-		jacobiIter(1,0, n,ia,ja,a,b,u,r,d);
-		
 	}
 	return 0;
 }
