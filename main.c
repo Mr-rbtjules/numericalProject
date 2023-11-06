@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include "proto.h"
+
+
+#define test "[0, 6] × [0, 10]  [0, 2] × [3, 4]"
 /* Declaratiopn des prototypes */
 
 
@@ -9,8 +12,8 @@
 
 int main(int argc, char *argv[])
 {
-   int m = 70; //  >= 13 et impaire pour la restriction et conserver distance par rapport au bords
-   mg_method(1, 1, m);
+   int m = 300; //  >= 13 et impaire pour la restriction et conserver distance par rapport au bords
+   mg_method(1000, 6, m);
    //pblm des que levelMax > 1 pblm de resolution at coarse level
    //qu'importe le m si on multiplie ou divise par 2 le res de Ac=r tjrs nulle r-Ac
    //piste pblm avec b ou r ou la ou on stoque c

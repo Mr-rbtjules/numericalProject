@@ -4,6 +4,7 @@
 #include "proto.h"
 
 
+
 #define COORD_X0 1.0 //col bord gauche
 #define COORD_X1 2.5 // col bord droit
 #define COORD_Y0 1.5 //ligne bord bas
@@ -43,9 +44,11 @@
 
 
 int mg_method(int iter, int levelMax, int m){
+	
+	
 	//initit memory and pointers
 	//compute all the coarse matrix and nl
-	int **ial; //liste donc chaque elem pointe vers 1 matrice d'un certain level (ici matrice == liste)
+	int **ial; //liste : chaque elem pointe vers 1 matrice d'un certain level (ici matrice == liste)
 	int **jal;
 	double **al;
 	double **rl;
@@ -59,12 +62,13 @@ int mg_method(int iter, int levelMax, int m){
 	int mu1 = MU1;
 	int mu2 = MU2;
 
+	//we pass the adress for each level
 	allocGrids(m, levelMax, &nl, &ial, &jal, &al, &bl, &dl, &rl, &ul);
 
 	//precomputation of all Ac and bc
 
 	for (int l = 0; l <= levelMax; l++){
-		
+		//plus besoin de passer les adresse (sauf pour nl car)
 		probMg(m, l, &(nl[l]), ial[l], jal[l], al[l], bl[l]);
 	}
 	
@@ -503,7 +507,7 @@ int symGS(int iter, double tol, int n, int *ia, int *ja, double *a,
 int allocGrids(int m, int levelMax, int **nl, int ***ial,
                int ***jal, double ***al, double ***bl,
 			   double ***dl, double ***rl, double ***ul){ /* *** var liste de liste et on acces la memoire donc 1 en plus */
-
+	//store the pointers of each level
 	*ial = malloc((levelMax+1) * sizeof(int*));
 	*jal = malloc((levelMax+1) * sizeof(int*));
 	*al = malloc((levelMax+1) * sizeof(double*));
@@ -552,6 +556,7 @@ int allocLevel(int m, int level, int *nl, int ***ial,
     return 0;
 }
 
+//not used
 int allocProb(int m, int *n, int **ia, int **ja, 
      		  double **a, double **b, double **u, double **r){
 
@@ -745,7 +750,7 @@ void computeParamTop(int m, double *h, double *invh2, int *y0,
 void computeParamLevel(int m, int level, double *hl, double *invh2l, 
                         int *y0l, int *y1l, int *x0l, int *x1l,
                         int *nxl, int *nl, int *nnzl){
-    //!!!! faux !
+    //!!!! ici ce qui est masqué est faux  et sert de contre example!!!
 	/*int sizeRc;
 	int mc = (m+1)/2;
 	double hc = 3.0/(mc-1);
@@ -775,9 +780,11 @@ void computeParamLevel(int m, int level, double *hl, double *invh2l,
     *nxl = nx/pow(2,level); // nb de points coars sur un ligne pas bord
     *nl = ((*nxl) * (*nxl)) - (pl * ql);
     *nnzl =( 5 * (*nxl) * (*nxl)) - (4 * (*nxl)) ; 
-    //nb de points concernés dans le trou:(compliqué a comprendre sans shema) (marche que si aumoins 3 points sur la largeur)
-    int trousl = (5 * (pl-2) * (ql-2) + 4 * 2 * (pl-2) + 4 * 2 * (ql-2) 
-                + 3 * 4 * 1 + 1 * 2 * pl + 1 * 2 * ql) + 2 * pl + 2 * ql;
+	//le trou engendre (5 * points ds le trous) element a banir,
+	// a ca on ajoute les elements qui se transforme en constante 
+	//pour les points pres du trous et il y en a autant qu'il y a de 
+	//points sur les bords du trou  
+	int trousl = 5*pl*ql + pl*2 + ql*2;
     *nnzl -= trousl;
 }
 
