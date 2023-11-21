@@ -17,7 +17,7 @@ clean:
 	rm *.o 
 	rm main
 
-main: main.c umfpack.o method.o
+main: main.c umfpack.o method.o time.o
 	cc $(COPT) $^ -o $@ $(LIB)
 
 umfpack.o: umfpack.c

@@ -1,0 +1,17 @@
+ok enft dans prob on a just a donner le pointer de ac qui n'est rien d'autre que a mais decaler d'un
+int de la taille de la premiere matrice 
+tailes
+a = nnzl
+ja = nnzl
+ia = nl +1
+b, u ,x , d, r = nl
+
+
+
+passer d'un m a un m coarse:
+25
+
+m  :13
+m/(1 << 1) + 1: 7
+
+en haut *2 -1

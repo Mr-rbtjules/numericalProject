@@ -17,10 +17,14 @@ extern globVal_s globVal;
 // PROB //
 int probMg(int mc, int *nl, 
 		   int *ial, int *jal, double *al, double *bl);
-
+int allocProb(int m, int *n, int **ia, int **ja, 
+     		  double **a, double **b, double **u, double **r);
+int allocGrids(int m, int levelMax, int **nl, int **nnzl, int **ial,
+               int **jal, double **al, double **bl,
+			   double **dl, double **rl, double **ul);
 void computeParamLevel(int mc, double *hl, double *invh2l, int *x0l,
 						int *x1l, int *y0l, int *y1l, int *nxl,
-						int *nl, int *nnzl);
+						int *nyl, int *nl, int *nnzl);
 void getNnz(int nx, int perUnit, int x0, int x1, int y0, int y1, int *n, int *nnz);
 double computeBound(double x, double y);
 int in_hole(int ix, int iy, int y0, int y1, int x0, int x1);
@@ -36,6 +40,14 @@ void extractDomain(const char* str_domain, int* count, int **domain);
 int correctM(int *domain, int m);
 void initGlobVal();
 void freeGlobVal();
+
+double mytimer();
+int solve_umfpack(int n, int *ia, int *ja, double *a, 
+                  double *b, double *x);
+double computeResNorm(int n, int *ia, int *ja, double *a,
+                             double *b,double *u, double *r);
+int computeRes(int n, int *ia, int *ja, double *a,
+                    double *u, double *b, double *r);
 
 
 #endif
