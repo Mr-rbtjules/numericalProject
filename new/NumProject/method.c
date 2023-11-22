@@ -16,11 +16,20 @@
 #define DOMAIN "[0, 6] × [0, 10] [2, 4] × [2, 5]"//faux pr 3 [0, 6] × [0, 10] [4, 6] × [3, 6]
 //discretisation 
 #define M 13
+#define LEVELMAX 1 
+
+/*
+        level 0
+\      /1
+ \    /2
+  \  /3
+   \/4 = level max = nb de fois qu'on restr
+*/
 //print parameters
 #define EXPLICIT 1
 
 //start global variable (m and domain)
-globVal_s globVal = { 0, NULL}; 
+globVal_s globVal = { 0, NULL, NULL, NULL}; 
 
 /// PROBLEM DISCRETISATION ///
 // a tester
@@ -275,47 +284,24 @@ int probMg(int mc, int *nl,
 }
 
 
-int allocGrids(int m, int levelMax, int **nl, int **nnzl, int **ial,
-               int **jal, double **al, double **bl,
+
+int allocGrids(int m, int levelMax, int **ial,
+               int **jal, double **al, double **b,
 			   double **dl, double **rl, double **ul){ /* *** var liste de liste et on acces la memoire donc 1 en plus */
 	//store the pointers of each level 
     //attention cumulé !
-	*nl = malloc((levelMax+1) * sizeof(int));
-    *nnzl = malloc((levelMax+1) * sizeof(int));
-    
-    int nnzTot = 0;
-    int nTot = 0;
+    // pour taille de ia : c'est le nb de n total (dernier de la list vectStart
+    //mais pour chaque level on a 1 eleme de plus que n, nb de niveaux = levelmAX +1
+    *ial = malloc((globVal.vectStart[LEVELMAX+1] + (levelMax+1)) * sizeof(int));
+	*jal = malloc(globVal.matStart[LEVELMAX+1] * sizeof(int));
+	*al = malloc(globVal.matStart[LEVELMAX+1] * sizeof(double));
+	*rl = malloc(globVal.vectStart[LEVELMAX+1] * sizeof(double));
+	*dl = malloc(globVal.vectStart[LEVELMAX+1] * sizeof(double));
+	*ul = malloc(globVal.vectStart[LEVELMAX+1] * sizeof(double));
+	*b = malloc(globVal.vectStart[1] * sizeof(double));
 
-    for (int l = 0; l <= levelMax; l++){
-        double h, invh2;
-        int x0,x1,y0,y1, nx, ny, nnz;
-        int n;	
-        int mc =  m/(1 << 1) + 1;
-        if (l == 0){mc = m;}
-		computeParamLevel(mc, &h, &invh2, &x0,
-						&x1, &y0, &y1, &nx,
-						&ny, &n, &nnz);
-        
-        nnzTot += nnz;
-        nTot += n; 
-        (*nl)[l] = n;
-        (*nnzl)[l] = nnz;
-        if (EXPLICIT){
-		    printf("\n Alloc level %d : m = %d hl = %lf nl %d ",l, mc, h, n);
-    	    printf(" = %d nnzl = %d nxl = %d nyl = %d \n", n, nnz, nx, ny);
-    	    printf("x0l = %d x1l = %d y0l = %d y1l = %d \n", x0, x1, y0, y1);
-	    }
-	}
-    // pour taille de ia : n+1 a cahque level, nb de level = levelMax+1 
-    *ial = malloc((nTot + (levelMax+1)) * sizeof(int));
-	*jal = malloc(nnzTot * sizeof(int));
-	*al = malloc(nnzTot * sizeof(double));
-	*rl = malloc(nTot * sizeof(double));
-	*dl = malloc(nTot * sizeof(double));
-	*ul = malloc(nTot * sizeof(double));
-	*bl = malloc(nTot * sizeof(double));
 
-    if (*bl == NULL || *ial == NULL || *jal == NULL || 
+    if (*b == NULL || *ial == NULL || *jal == NULL || 
         *al == NULL ||*dl == NULL || *rl == NULL || *ul == NULL){
         printf("\n ERREUR : pas assez de mémoire pour générer le système\n");
         return 1;
@@ -485,14 +471,55 @@ int computeRes(int n, int *ia, int *ja, double *a,
 
 
 /// GLOBAL VARIABLES ///
+
+int initIndex( int **vectStart, int **matStart){
+    
+    //contient les debuts de chaque vecteur (pour tt les n) et la fin du vecteur global
+	*vectStart = (int*)malloc((LEVELMAX+1 + 1) * sizeof(int));
+    *matStart = (int*)malloc((LEVELMAX+1 + 1) * sizeof(int));
+    
+    (*vectStart)[0] = 0;
+    (*matStart)[0] = 0;
+    int nnzTot = 0;
+    int nTot = 0;
+    for (int l = 0; l <= LEVELMAX; l++){
+        double h, invh2;
+        int x0,x1,y0,y1, nx, ny, nnz;
+        int n;	
+		computeParamLevel(globVal.m[l], &h, &invh2, &x0,
+						&x1, &y0, &y1, &nx,
+						&ny, &n, &nnz);
+        
+        nnzTot += nnz;
+        nTot += n; 
+        (*vectStart)[l+1] = nTot;
+        (*matStart)[l+1] = nnzTot;
+	}
+    return 0;
+}
+
+int initMlevels(int m, int **mLevels){
+    *mLevels = (int *)malloc((LEVELMAX+1)*sizeof(int));
+    *mLevels[0] = m;
+    for (int l = 1; l <= LEVELMAX; l+=1){
+        *mLevels[l] = m/(1 << l) + 1;
+    }
+    return 0;
+}
+
 void initGlobVal(){
     int count;
     extractDomain(DOMAIN, &count, &(globVal.domain));
     globVal.m = correctM(globVal.domain, M);
+    initMlevels(M, &(globVal.m));
+    initIndex(&(globVal.vectStart), &(globVal.matStart));
+
 }
 
 void freeGlobVal(){
     free(globVal.domain);
+    free(globVal.vectStart);
+    free(globVal.matStart);
 }
 
 double computeBound(double x, double y){
@@ -534,4 +561,22 @@ int correctM(int *domain, int m){
         L *= 2;
     }
     return L + 1;
+}
+
+void printVect(void *vect, int size, int type) {
+    int i;
+    printf("\n[");
+    if (type == 0) {  // Assuming type 0 represents int
+        int *intVect = (int *)vect;
+        for (i = 0; i < size; i++) {
+            printf("%d, ", intVect[i]);
+        }
+    } 
+    else if (type == 1) {  // Assuming type 1 represents double
+        double *doubleVect = (double *)vect;
+        for (i = 0; i < size; i++) {
+            printf("%lf, ", doubleVect[i]);
+        }
+    printf("]\n");
+    }
 }

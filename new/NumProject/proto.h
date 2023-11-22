@@ -6,8 +6,10 @@
 typedef struct globVal_s globVal_s;
 struct globVal_s{
 
-	int m;
+	int *m;
 	int *domain;
+	int *vectStart;
+	int *matStart;
 
 };
 extern globVal_s globVal;
@@ -19,7 +21,7 @@ int probMg(int mc, int *nl,
 		   int *ial, int *jal, double *al, double *bl);
 int allocProb(int m, int *n, int **ia, int **ja, 
      		  double **a, double **b, double **u, double **r);
-int allocGrids(int m, int levelMax, int **nl, int **nnzl, int **ial,
+int allocGrids(int m, int levelMax, int **ial,
                int **jal, double **al, double **bl,
 			   double **dl, double **rl, double **ul);
 void computeParamLevel(int mc, double *hl, double *invh2l, int *x0l,
@@ -39,6 +41,7 @@ int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx);
 void extractDomain(const char* str_domain, int* count, int **domain);
 int correctM(int *domain, int m);
 void initGlobVal();
+int initMlevels(int m, int **mLevels);
 void freeGlobVal();
 
 double mytimer();
@@ -48,6 +51,6 @@ double computeResNorm(int n, int *ia, int *ja, double *a,
                              double *b,double *u, double *r);
 int computeRes(int n, int *ia, int *ja, double *a,
                     double *u, double *b, double *r);
-
+void printVect(void *vect, int size, int type);
 
 #endif
