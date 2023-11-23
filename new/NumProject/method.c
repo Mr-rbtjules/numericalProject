@@ -7,13 +7,21 @@
 
 #define BOUND1(x, y) (exp(sqrt((x)*(x) + (y)*(y))))
 #define BOUND2(x, y) (sin(sqrt((x)*(x) + (y)*(y))))
-#define BOUND3(x, y) (0)
+#define BOUND0(x, y) (0)
 
 //program parameters
 //type of boundary conditions
-#define BOUND BOUND2
-//type of domain
-#define DOMAIN "[0, 6] × [0, 10] [2, 4] × [2, 5]"//faux pr 3 [0, 6] × [0, 10] [4, 6] × [3, 6]
+#define BOUND BOUND0
+//type of domain$
+#define DOMAIN1 "[0, 6] × [0, 10] [2, 4] × [2, 5]"
+#define DOMAIN2 "[0, 6] × [0, 10] [0, 2] × [3, 4]"
+#define DOMAIN3 "[0, 6] × [0, 10] [4, 6] × [3, 6]"
+#define DOMAIN4 "[0, 6] × [0, 10] [2, 3] × [5, 8]"
+#define DOMAIN5 "[0, 6] × [0, 10] [3, 4] × [0, 4]"
+#define DOMAIN6 "[0, 6] × [0, 10] [0, 4] × [0, 3]"
+#define DOMAIN7 "[0, 6] × [0, 10] [2, 4] × [5, 10]"
+#define DOMAIN8 "[0, 6] × [0, 10] [0, 4] × [3, 10]"
+#define DOMAIN DOMAIN1
 //discretisation 
 #define M 13
 #define LEVELMAX 1 
@@ -170,7 +178,6 @@ int probMg(int m, int *n,
     double h, invh2;
     int x0,x1,y0,y1, nx, ny, nnz;
 
-    
     computeParamLevel(m, &h,&invh2,&x0,&x1, &y0, &y1, &nx, &ny, n, &nnz);
     if (EXPLICIT){
 
@@ -330,6 +337,9 @@ int mg_method(int iter){
 
 	//u0 = 0
 	initialization(nl, ial, jal, al, b, rl, ul);
+
+
+    plot_res(rl + globVal.vectStart[startLevelTg], startLevelTg);
 	/*
     if (LOAD){
 		printf("\n Load percentage : \n");
@@ -363,6 +373,8 @@ int mg_method(int iter){
 		free(dl[j]);
 		free(ul[j]);
 	}*/
+
+
     free(nl);
     free(ial);
     free(jal);
@@ -452,7 +464,15 @@ int allocProb(int m, int *n, int **ia, int **ja,
     return 0;
 }
 
-
+int on_bound(int px, int py, int mx, int my){
+	
+    if (py == 0 || py == (my-1) || px == 0 || px == (mx-1)){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
 
 int in_hole(int ix, int iy, int y0, int y1, int x0, int x1){
 	//1 == True
@@ -696,4 +716,80 @@ void printVect(void *vect, int size, int type) {
         }
     printf("]\n");
     }
+}
+
+
+
+void plot_res(double *r, int level){
+
+
+
+ /*ajouter fonctionnalité ou trou en couleur diff*/
+
+
+
+    /*cree un fichier texte (.dat pour gnuplot) contenant 2 colonnes
+    avec les coordonnées x et y et une colonnes avec les éléments de u (bord et trous compris avec u = 0)
+    et lance le script gnuplot pour plot le resultat (nmp = numero de mode propre)
+
+    Arguments
+    =========
+    x (input) - pointeur vers le vecteur a plot
+    m (input)     - nombre de points par directions dans la grille
+    */
+    double h, invh2;
+    int x0,x1,y0,y1, nx, ny, nnz;
+    int n;
+    computeParamLevel(
+        globVal.m[level], &h,&invh2,&x0,&x1, &y0, &y1, &nx, &ny, &n, &nnz
+    );
+    
+    int mx = nx+2;
+    int my = ny+2;
+
+    /*creation du ficher*/
+    FILE* pointFile = NULL;                        //renvoi un pointeur pointant vers un type FILE
+    const char* file_name = "coord_stat.dat";
+
+    pointFile = fopen(file_name,"w+");           // ouverture en mode ecriture
+    
+    if (pointFile != NULL){
+
+        /*Calcul des constantes*/
+        
+        int ind = 0;
+        //indice 00 different que pour prob, ici c'est le coin du domaine
+        for (int py = 0; py < my; py++){ //passage ligne suivante
+            for (int px = 0; px < mx; px++){      //passage colonne suivante
+                
+                //si sur bord ou trou
+                if ( on_bound(px,py,mx,my) ||  in_hole(px-1,py-1,y0,y1,x0,x1) ){
+                    
+
+                    //fprintf(pointFile, "%.16g %.16g 0\n", px*hl, py*hl);
+                    fprintf(pointFile, "%.16g %.16g NaN\n", px*h, py*h);
+                }
+                else{
+                    fprintf(pointFile, "%.16g %.16g %.16g\n", (px*h), (py*h), r[ind]);
+                    ind += 1;
+                }
+            }
+            fprintf(pointFile, "\n");
+        }
+        //fermeture du ficher
+        fclose(pointFile);
+    }
+
+    //initialise fichier gnuplot
+
+
+    //plot le graphique
+
+    FILE *gnuplot = popen("gnuplot -persistent","w");
+    fprintf(gnuplot, "set title 'm = %d level = %d'\n", mx, level);
+    fprintf(gnuplot, "load 'gnuScript_stat.gnu'\n");
+    fclose(gnuplot);
+
+    //supprime coord_stat.dat
+    int _ = system("rm coord_stat.dat");
 }

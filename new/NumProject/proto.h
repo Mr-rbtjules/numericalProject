@@ -33,6 +33,7 @@ void computeParamLevel(int m, double *h, double *invh2, int *x0,
     
 void getNnz(int nx, int perUnit, int x0, int x1, int y0, int y1, int *n, int *nnz);
 double computeBound(double x, double y);
+int on_bound(int px, int py, int mx, int my);
 int in_hole(int ix, int iy, int y0, int y1, int x0, int x1);
 int check_nord(int ix, int iy, int y0, int y1, int x0, int x1, int nx);
 int check_sud(int ix, int iy, int y0, int y1, int x0, int x1, int nx);
@@ -56,5 +57,8 @@ double computeResNorm(int n, int *ia, int *ja, double *a,
 int computeRes(int n, int *ia, int *ja, double *a,
                     double *u, double *b, double *r);
 void printVect(void *vect, int size, int type);
+
+//plot//
+void plot_res(double *r, int level);
 
 #endif
