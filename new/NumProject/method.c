@@ -17,6 +17,9 @@
 //discretisation 
 #define M 13
 #define LEVELMAX 1 
+#define MU1 1
+#define MU2 1
+
 
 /*
         level 0
@@ -27,9 +30,10 @@
 */
 //print parameters
 #define EXPLICIT 1
+#define LOAD 1
 
 //start global variable (m and domain)
-globVal_s globVal = { 0, NULL, NULL, NULL}; 
+globVal_s globVal = { NULL, NULL, NULL, NULL}; 
 
 /// PROBLEM DISCRETISATION ///
 // a tester
@@ -45,21 +49,21 @@ void getIndexHole(int *domain, int mc, int *x0, int *x1, int *y0, int *y1){
     *y1 = ((domain[7] - domain[2]) * perUnit) - 1;
 }
 
-void computeParamLevel(int mc, double *hl, double *invh2l, int *x0l,
-						int *x1l, int *y0l, int *y1l, int *nxl,
-						int *nyl, int *nl, int *nnzl){
+void computeParamLevel(int m, double *h, double *invh2, int *x0,
+						int *x1, int *y0, int *y1, int *nx,
+						int *ny, int *n, int *nnz){
     
-    int perUnit = (mc-1)/(globVal.domain[1] - globVal.domain[0]);
-    *x0l = ((globVal.domain[4] - globVal.domain[0]) * perUnit) - 1;//*perunit ??
-    *x1l = ((globVal.domain[5] - globVal.domain[0]) * perUnit) - 1;
-    *y0l = ((globVal.domain[6] - globVal.domain[2]) * perUnit) - 1;
-    printf("%d %d %d  \n", globVal.domain[6],globVal.domain[2],perUnit);
-    *y1l = ((globVal.domain[7] - globVal.domain[2]) * perUnit) - 1;
-    *hl = (double)1/perUnit;
-    *invh2l = 1.0/((*hl)*(*hl));
-    *nxl = mc-2; //par def
-    *nyl = ((globVal.domain[3] - globVal.domain[2])*perUnit) -1;
-    getNnz(*nxl, perUnit, *x0l, *x1l, *y0l,* y1l, nl, nnzl);
+    int perUnit = (m-1)/(globVal.domain[1] - globVal.domain[0]);
+    
+    *x0 = ((globVal.domain[4] - globVal.domain[0]) * perUnit) - 1;
+    *x1 = ((globVal.domain[5] - globVal.domain[0]) * perUnit) - 1;
+    *y0 = ((globVal.domain[6] - globVal.domain[2]) * perUnit) - 1;
+    *y1 = ((globVal.domain[7] - globVal.domain[2]) * perUnit) - 1;
+    *h = (double)1/perUnit;
+    *invh2 = 1.0/((*h)*(*h));
+    *nx = m-2; //par def
+    *ny = ((globVal.domain[3] - globVal.domain[2])*perUnit) -1;
+    getNnz(*nx, perUnit, *x0, *x1, *y0,* y1, n, nnz);
 }
 
 void getNnz(int nx, int perUnit, int x0, int x1, int y0, int y1, int *n, int *nnz){
@@ -71,8 +75,10 @@ void getNnz(int nx, int perUnit, int x0, int x1, int y0, int y1, int *n, int *nn
     //1 chaque point donne 5 element
     int dx = nx; //nb de points a compter
     int dy = ((globVal.domain[3] - globVal.domain[2]) * perUnit) - 1;
+    
     //generalise pour trou sur bord exterieur
     //on rajoute ce qu'on a retiré en trop
+    
     if ((x0<=0 && y0<=0) || (x0<=0 && y1>=dy) 
         || (x1>= dx && y0<=0) ||(x1>=dx && y1>=dy)) { // dans 1 coin
     //les q point de la largeur partage 1 point 
@@ -80,6 +86,7 @@ void getNnz(int nx, int perUnit, int x0, int x1, int y0, int y1, int *n, int *nn
         
         *nnz = 5*dx*dy - 5*(p-1) * (q-1);
         *n = (dx * dy) - ((p-1) * (q-1));
+        
         //2 on retire les points qui depassent sur les bord exterieurs
         *nnz -= 2*dx + 2*dy;
     }
@@ -148,7 +155,6 @@ void getNnz(int nx, int perUnit, int x0, int x1, int y0, int y1, int *n, int *nn
         //5 les 5 genere par les points du trou
         *nnz -= 5*p*q;
     }
-    
 }
 
 
@@ -156,111 +162,111 @@ void getNnz(int nx, int perUnit, int x0, int x1, int y0, int y1, int *n, int *nn
 
 
 
-int probMg(int mc, int *nl, 
-		   int *ial, int *jal, double *al, double *bl){
+int probMg(int m, int *n, 
+		   int *ia, int *ja, double *a, double *b){
     
     //fait pour m/2
     //mémoire deja allouée
-    double hl, invh2l;
-    int x0l,x1l,y0l,y1l, nxl, nyl, nnzl;
+    double h, invh2;
+    int x0,x1,y0,y1, nx, ny, nnz;
 
     
-    computeParamLevel(mc, &hl,&invh2l,&x0l,&x1l, &y0l, &y1l, &nxl, &nyl, nl, &nnzl);
+    computeParamLevel(m, &h,&invh2,&x0,&x1, &y0, &y1, &nx, &ny, n, &nnz);
     if (EXPLICIT){
 
-    	printf("\n ProbMg hl = %lf ", hl);
-    	printf("nl = %d nnzl = %d nxl = %d nyl= %d \n", *nl, nnzl, nxl, nyl);
-    	printf("x0l = %d x1l = %d y0l = %d y1l = %d \n", x0l, x1l, y0l, y1l);
+    	printf("\n ProbMg h = %lf ", h);
+    	printf("n = %d nnz = %d nx = %d ny= %d \n", *n, nnz, nx, ny);
+    	printf("x0 = %d x1 = %d y0 = %d y1 = %d \n", x0, x1, y0, y1);
 	}
 	
-    int nnzl_save = nnzl;
-    nnzl = 0;
+    int nnz_save = nnz;
+    nnz = 0;
     
     //passage ligne suiv(plaque complete)
     int ind = 0;
-    for (int iyl = 0; iyl < nyl; iyl++) { //iy ix indice sur grille hors bords  mais position (ix+1)*h
-        for (int ixl = 0; ixl < nxl; ixl++) {
+    for (int iy = 0; iy < ny; iy++) { //iy ix indice sur grille hors bords  mais position (ix+1)*h
+        for (int ix = 0; ix < nx; ix++) {
             //exclu interieur et bord du trou
-            if(! in_hole(ixl,iyl,y0l,y1l,x0l,x1l)){
+            if(! in_hole(ix,iy,y0,y1,x0,x1)){
                 //marquer le début de la ligne suivante dans le tableau 'ia'
-                ial[ind] = nnzl;
+                ia[ind] = nnz;
                 
-                bl[ind] = 0;
+                b[ind] = 0;
                
-                if (check_sud(ixl,iyl,y0l,y1l,x0l,x1l,nyl)){
-                    al[nnzl] = -invh2l;
-                    jal[nnzl] = indice(ixl,iyl-1,y0l,y1l,x0l,x1l, nxl);//ind - nx + skip_sud;
+                if (check_sud(ix,iy,y0,y1,x0,x1,ny)){
+                    a[nnz] = -invh2;
+                    ja[nnz] = indice(ix,iy-1,y0,y1,x0,x1, nx);//ind - nx + skip_sud;
                     
                     //-nx car on regarde delui d'en bas(shema)
                     //+skip_sud car comme on a passe des points(trous)
                     // nx ramene trop loin en arrière
-                    nnzl++;
+                    nnz++;
                 }
                 else{
-					if (mc == globVal.m){
-						double x = (ixl+ 1)*hl;
-						double y = (iyl + 1 -1)*hl;
+					if (m == globVal.m[0]){
+						double x = (ix+ 1)*h;
+						double y = (iy + 1 -1)*h;
 						double bound = computeBound(x, y);
-                    	bl[ind] += bound * invh2l; 
+                    	b[ind] += bound * invh2; 
 					}
                 }
 
                 //replissage de la ligne : voisin ouest 
                 //si pas a droite d'un bord
                
-                if (check_west(ixl,iyl,y0l,y1l,x0l,x1l,nxl)){
-                    al[nnzl] = -invh2l;
-                    jal[nnzl] = ind - 1;
-                    nnzl++;
+                if (check_west(ix,iy,y0,y1,x0,x1,nx)){
+                    a[nnz] = -invh2;
+                    ja[nnz] = ind - 1;
+                    nnz++;
                 }
                 else{
-					if (mc == globVal.m){
-						double x = (ixl + 1 - 1)*hl;
-						double y = (iyl + 1)*hl;
+					if (m == globVal.m[0]){
+						double x = (ix + 1 - 1)*h;
+						double y = (iy + 1)*h;
 						double bound = computeBound( x, y);
-                    	bl[ind] += bound * invh2l;
+                    	b[ind] += bound * invh2;
 					}
 					
                 }
                 
 
                 // replissage de la ligne : élém. diagonal
-                al[nnzl] = 4.0*invh2l;
-                jal[nnzl] = ind;
+                a[nnz] = 4.0*invh2;
+                ja[nnz] = ind;
                 
-                nnzl++;
+                nnz++;
                 
                 // replissage de la ligne : voisin est
                 //si pas a gauche d'un bord
                 
-                if ( check_est(ixl,iyl,y0l,y1l,x0l,x1l,nxl)){
-                    al[nnzl] = -invh2l;
-                    jal[nnzl] = ind + 1;
-                    nnzl++;
+                if ( check_est(ix,iy,y0,y1,x0,x1,nx)){
+                    a[nnz] = -invh2;
+                    ja[nnz] = ind + 1;
+                    nnz++;
                 }
                 else{
-					if (mc == globVal.m){
-						double x = (ixl + 1 +1)*hl;
-						double y = (iyl + 1)*hl;
+					if (m == globVal.m[0]){
+						double x = (ix + 1 +1)*h;
+						double y = (iy + 1)*h;
 						double bound = computeBound(x, y);	
-						bl[ind] += bound * invh2l;
+						b[ind] += bound * invh2;
 					}
                 }
 
                 // replissage de la ligne : voisin nord
                 //si pas en dessous d'un bord
                 
-                if ( check_nord(ixl,iyl,y0l,y1l,x0l,x1l,nyl) ){
-                        al[nnzl] = -invh2l;
-                        jal[nnzl] = indice(ixl,iyl+1,y0l,y1l,x0l,x1l, nxl);
-                        nnzl++;
+                if ( check_nord(ix,iy,y0,y1,x0,x1,ny) ){
+                        a[nnz] = -invh2;
+                        ja[nnz] = indice(ix,iy+1,y0,y1,x0,x1, nx);
+                        nnz++;
                 }
                 else{
-					if (mc == globVal.m){
-						double x = (ixl + 1)*hl;
-						double y = (iyl + 1 +1)*hl;
+					if (m == globVal.m[0]){
+						double x = (ix + 1)*h;
+						double y = (iy + 1 +1)*h;
 						double bound = computeBound(x, y);
-						bl[ind] += bound * invh2l;
+						b[ind] += bound * invh2;
 					}
 
                 }
@@ -270,41 +276,147 @@ int probMg(int mc, int *nl,
         }
     }
 
-     if (*nl != ind){
-        printf(" err nl %d ind %d\n", *nl, ind);
+     if (*n != ind){
+        printf(" err nl %d ind %d\n", *n, ind);
     }
-    else if (nnzl != nnzl_save){
-        printf(" err nnzl %d nnzl_save %d\n", nnzl, nnzl_save);
+    else if (nnz != nnz_save){
+        printf(" err nnz %d nnz_save %d\n", nnz, nnz_save);
     }
     else {
-        ial[ind] = nnzl;
+        ia[ind] = nnz;
     }
 
 	return 0;
 }
 
+int mg_method(int iter){
+	
+	
+	//initit memory and pointers
+	//compute all the coarse matrix and nl
+	int *ial = NULL; //liste : chaque elem pointe vers 1 matrice d'un certain level (ici matrice == liste)
+	int *jal = NULL;
+	double *al = NULL;
+	double *rl = NULL;
+	double *ul = NULL;
+	double *dl = NULL;
+	
+	double *b = NULL; //attention aux autres b prc pt on les utilise pour autre
+	
+	int *nl = NULL; 
+
+	int mu1 = MU1;
+	int mu2 = MU2;
+
+	//we pass the adress for each level
+	allocGrids(&nl, &ial, &jal, &al, &b, &dl, &rl, &ul);
+    
+	//precomputation of all Ac and bc
+
+	for (int l = 0; l <= LEVELMAX; l++){
+		//adresses of each vector is simply the pointer 
+        //shifted
+		probMg(
+            globVal.m[l], 
+            nl + l, 
+            ial + globVal.vectStart[l] + l,
+            jal + globVal.matStart[l], 
+            al + globVal.matStart[l],
+            b
+        );
+	}
+	
+	int startLevelTg = 0; 
+
+	//u0 = 0
+	initialization(nl, ial, jal, al, b, rl, ul);
+	/*
+    if (LOAD){
+		printf("\n Load percentage : \n");
+	}
+	//start iterations of the multigrid cycle (tg_rec)
+	double t1 = mytimer();
+  if( mg_iter(iter, levelMax, m,ial,jal,al,rl,ul,dl,bl,nl,mu1,mu2)){
+	return 1;
+  }
+  double t2 = mytimer();
+  if (CHRONO){
+	printf("\nTemps de solution multigrid method (CPU): %5.1f sec\n",t2-t1);
+  }
+  printf("\nfinal res = %lf\n", computeResNorm(nl[startLevelTg],
+									ial[startLevelTg],
+									jal[startLevelTg],
+									al[startLevelTg],
+									bl[startLevelTg],
+									ul[startLevelTg],
+									rl[startLevelTg]));
+  
+	
+	plot_res(rl[startLevelTg], m, startLevelTg);
+	
+	
+	for (int j = 0; j <= levelMax; j++){
+		free(ial[j]);
+		free(jal[j]);
+		free(al[j]);
+		free(rl[j]);
+		free(dl[j]);
+		free(ul[j]);
+	}*/
+    free(nl);
+    free(ial);
+    free(jal);
+    free(al);
+    free(b);
+    free(dl);
+    free(ul);
+    free(rl);
+	return 0;
+}
 
 
-int allocGrids(int m, int levelMax, int **ial,
+int initialization(int *n0, int *ia0, int *ja0, double *a0,
+						 double *b, double *r0, double *u0){
+
+	//arbitrary u0
+	for (int i=0; i< *n0; i++){
+		u0[i] = 0; 
+	}
+	if (EXPLICIT){
+		printf("\n initial res : %lf\n", computeResNorm(
+            *n0, ia0, ja0, a0, b, u0, r0
+        ));
+	}
+	return 0;
+}
+
+int allocGrids(int **nl, int **ial,
                int **jal, double **al, double **b,
-			   double **dl, double **rl, double **ul){ /* *** var liste de liste et on acces la memoire donc 1 en plus */
-	//store the pointers of each level 
-    //attention cumulé !
+			   double **dl, double **rl, double **ul){ 
+    *nl = (int*)malloc((LEVELMAX +1)*sizeof(int));
     // pour taille de ia : c'est le nb de n total (dernier de la list vectStart
     //mais pour chaque level on a 1 eleme de plus que n, nb de niveaux = levelmAX +1
-    *ial = malloc((globVal.vectStart[LEVELMAX+1] + (levelMax+1)) * sizeof(int));
-	*jal = malloc(globVal.matStart[LEVELMAX+1] * sizeof(int));
-	*al = malloc(globVal.matStart[LEVELMAX+1] * sizeof(double));
-	*rl = malloc(globVal.vectStart[LEVELMAX+1] * sizeof(double));
-	*dl = malloc(globVal.vectStart[LEVELMAX+1] * sizeof(double));
-	*ul = malloc(globVal.vectStart[LEVELMAX+1] * sizeof(double));
-	*b = malloc(globVal.vectStart[1] * sizeof(double));
+    *ial = (int*)malloc((globVal.vectStart[LEVELMAX+1] + (LEVELMAX+1)) * sizeof(int)); 
+    //levelmax = indice du debut du dernier niveau donc +1 pour avoir le nb tot d'elem
+    //elem matriciel
+	*jal = (int*)malloc(globVal.matStart[LEVELMAX+1] * sizeof(int));
+	*al = (double*)malloc(globVal.matStart[LEVELMAX+1] * sizeof(double));
+    //elem vectoriel
+	*rl = (double*)malloc(globVal.vectStart[LEVELMAX+1] * sizeof(double));
+	*dl = (double*)malloc(globVal.vectStart[LEVELMAX+1] * sizeof(double));
+	*ul = (double*)malloc(globVal.vectStart[LEVELMAX+1] * sizeof(double));
+    //on a besoin que de b au debut voir multigrid algo description
+    //2eme elem de vectstart = n pour le top level
+	*b = (double*)calloc(globVal.vectStart[1], sizeof(double));
 
 
-    if (*b == NULL || *ial == NULL || *jal == NULL || 
+    if (*nl == NULL || *b == NULL || *ial == NULL || *jal == NULL || 
         *al == NULL ||*dl == NULL || *rl == NULL || *ul == NULL){
         printf("\n ERREUR : pas assez de mémoire pour générer le système\n");
         return 1;
+    }
+    if (EXPLICIT){
+        printf("\nMemory allocated for level 0 to level %d\n", LEVELMAX);
     }
 	
 	return 0;
@@ -409,9 +521,7 @@ int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx){ //ix iy -> in
         q -= 1;
         x0 = 0; //enleve probleme de retard au debut
     }
-    //en doussous du trou 
-    /*printf("hello %d %d %d %d\n",ix, iy, y0 , x1);
-        exit(0);*/
+    
     if (iy < y0){//pas de retard
 		ind = ix + (iy * nx);
 	}
@@ -433,7 +543,7 @@ int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx){ //ix iy -> in
 	return ind;
 }
 
-
+//pt chnger n en *n a voir
 double computeResNorm(int n, int *ia, int *ja, double *a, 
 						double *b, double *u,  double *r){
 
@@ -475,6 +585,7 @@ int computeRes(int n, int *ia, int *ja, double *a,
 int initIndex( int **vectStart, int **matStart){
     
     //contient les debuts de chaque vecteur (pour tt les n) et la fin du vecteur global
+    //donc nb de levels = levelmax +1 , et encore +1 pour la fin de vecteur un peu comme dans ia
 	*vectStart = (int*)malloc((LEVELMAX+1 + 1) * sizeof(int));
     *matStart = (int*)malloc((LEVELMAX+1 + 1) * sizeof(int));
     
@@ -491,35 +602,41 @@ int initIndex( int **vectStart, int **matStart){
 						&ny, &n, &nnz);
         
         nnzTot += nnz;
-        nTot += n; 
+        nTot += n;
         (*vectStart)[l+1] = nTot;
         (*matStart)[l+1] = nnzTot;
 	}
+    
     return 0;
 }
 
 int initMlevels(int m, int **mLevels){
+    
     *mLevels = (int *)malloc((LEVELMAX+1)*sizeof(int));
-    *mLevels[0] = m;
+    (*mLevels)[0] = m;
     for (int l = 1; l <= LEVELMAX; l+=1){
-        *mLevels[l] = m/(1 << l) + 1;
+        (*mLevels)[l] = m/(1 << l) + 1;
     }
+    
     return 0;
 }
 
 void initGlobVal(){
     int count;
     extractDomain(DOMAIN, &count, &(globVal.domain));
-    globVal.m = correctM(globVal.domain, M);
-    initMlevels(M, &(globVal.m));
+    
+    int m = correctM(globVal.domain, M);
+    
+    initMlevels(m, &(globVal.m));
+    
     initIndex(&(globVal.vectStart), &(globVal.matStart));
-
 }
 
 void freeGlobVal(){
     free(globVal.domain);
     free(globVal.vectStart);
     free(globVal.matStart);
+    free(globVal.m);
 }
 
 double computeBound(double x, double y){

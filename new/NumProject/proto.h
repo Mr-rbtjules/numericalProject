@@ -17,16 +17,20 @@ extern globVal_s globVal;
 
 
 // PROB //
-int probMg(int mc, int *nl, 
-		   int *ial, int *jal, double *al, double *bl);
+int probMg(int m, int *n, 
+		   int *ia, int *ja, double *a, double *b);
+int mg_method(int iter);
+int initialization(int *n0, int *ia0, int *ja0, double *a0,
+						 double *b, double *r0, double *u0);
 int allocProb(int m, int *n, int **ia, int **ja, 
      		  double **a, double **b, double **u, double **r);
-int allocGrids(int m, int levelMax, int **ial,
+int allocGrids(int **nl, int **ial,
                int **jal, double **al, double **bl,
 			   double **dl, double **rl, double **ul);
-void computeParamLevel(int mc, double *hl, double *invh2l, int *x0l,
-						int *x1l, int *y0l, int *y1l, int *nxl,
-						int *nyl, int *nl, int *nnzl);
+void computeParamLevel(int m, double *h, double *invh2, int *x0,
+						int *x1, int *y0, int *y1, int *nx,
+						int *ny, int *n, int *nnz);
+    
 void getNnz(int nx, int perUnit, int x0, int x1, int y0, int y1, int *n, int *nnz);
 double computeBound(double x, double y);
 int in_hole(int ix, int iy, int y0, int y1, int x0, int x1);
