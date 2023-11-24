@@ -12,7 +12,7 @@ int main() {
     
     initGlobVal();
 
-    mg_method(5);
+    mg_method(1);
     
     freeGlobVal();
 
