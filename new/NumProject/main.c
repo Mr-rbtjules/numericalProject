@@ -12,7 +12,10 @@ int main() {
     
     initGlobVal();
 
-    mg_method(1);
+    int p = (globVal.m[0]-1)/(globVal.domain[1] - globVal.domain[0]);
+    printf("%d\n", p);
+
+    mg_method(15);
     
     freeGlobVal();
 
