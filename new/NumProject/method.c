@@ -24,8 +24,8 @@
 #define DOMAIN8 "[0, 6] × [0, 10] [0, 4] × [3, 10]"
 #define DOMAIN DOMAIN1
 //discretisation 
-#define M 6145
-#define LEVELMAX  10
+#define M 300
+#define LEVELMAX 5
 #define MU1 4
 #define MU2 4
 #define MODE 1 //0umpf 1 sym 2jacobi 
@@ -35,6 +35,7 @@
 /*
 ce qui fonctionne pour 1500 : 7 4 4 1 20
 
+6145
 
 
 */
@@ -49,11 +50,11 @@ ce qui fonctionne pour 1500 : 7 4 4 1 20
    \/4 = level max = nb de fois qu'on restr
 */
 //print parameters
-#define EXPLICIT 0
+#define EXPLICIT 1
 #define LOAD 1
 #define CHRONO 1
 #define RELAX 0
-#define PLOT 0
+#define PLOT 1
 
 //start global variable (m and domain)
 globVal_s globVal = { NULL, NULL, NULL, NULL}; 
