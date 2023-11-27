@@ -23,7 +23,14 @@ extern globVal_s globVal;
 int mg_method(int iter);
 int mg_iter(int iter, int levelMax, int m, int mu1, int mu2, int *nl, int *ial,
              int *jal, double *al, double *rl, double *ul, double *dl, double *bl);
+
 int tg_rec(int level, int m, int mu1,
+			int mu2, int *nl, int *ial, int *jal,
+		   double *al, double *bl, double *ul, double *rl, double *dl);
+int getDown(int level, int m, int mu1,
+			int mu2, int *nl, int *ial, int *jal,
+		   double *al, double *bl, double *ul, double *rl, double *dl);
+int getUp(int level, int m, int mu1,
 			int mu2, int *nl, int *ial, int *jal,
 		   double *al, double *bl, double *ul, double *rl, double *dl);
 int forwardGS(int iter, int *n, int *ia, int *ja, double *a,
@@ -109,5 +116,10 @@ int solve_umfpack(int n, int *ia, int *ja, double *a,
 int allocProb(int m, int *n, int **ia, int **ja, 
      		  double **a, double **b, double **u, double **r);
 
+
+
+#define N 4
+void lanczos(double A[N][N], int max_iter, double *lmin, double *lmax);
+void matvec(double A[N][N], double *x, double *result);
 
 #endif

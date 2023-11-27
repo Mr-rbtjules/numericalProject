@@ -6,9 +6,11 @@
 //must be the form of boundaries \ holes
 
 
-
+#define MAX_ITER 1000
+#define N 4
 int main() {
     //int* numbers = extract_numbers(TEST, &count);
+    
     
     initGlobVal();
 
@@ -18,7 +20,20 @@ int main() {
     mg_method(15);
     
     freeGlobVal();
+    
+    /*double A[N][N] = {
+        {4, 0, 0, 0},
+        {0, 3, 0, 0},
+        {0, 0, 2, 0},
+        {0, 0, 0, 1}
+    };
 
+    double lmin, lmax;
+    lanczos(A, MAX_ITER, &lmin, &lmax);
+
+    printf("Min eigenvalue approximation: %f\n", lmin);
+    printf("Max eigenvalue approximation: %f\n", lmax);
+*/
 /*    initGlobVal();  
     //pour remplacer nnz on peut utiliser ia dernier elem ? 
     int *nl;

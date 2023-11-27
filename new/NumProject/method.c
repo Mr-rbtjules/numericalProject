@@ -30,6 +30,10 @@
 #define MU2 4
 #define MODE 1 //0umpf 1 sym 2jacobi 
 #define ITERCORE 20
+#define CYCLEW {{8}, {LEVELMAX,1} , {1,0},{1,1},{2,0},{2,1},{1,0},{1,1} , {LEVELMAX-1,0}} //1 :descend 0 :monte et symetrize
+#define CYCLEV {{1},{LEVELMAX,1}}
+#define CYCLE CYCLEV
+
 
 
 /*
@@ -196,35 +200,11 @@ int tg_rec(int level, int m, int mu1,
         if (EXPLICIT){
             printf("\n\n  LEVEL : %d\n\n", level);
         }
-        forwardGS(
-            mu1, 
-            nl + level, 
-            ial + globVal.vectStart[level] + level, //car pour chaque level ia possede n+1 elem
-            jal + globVal.matStart[level], //matstart contient la somme des nnz
-            al + globVal.matStart[level],
-            bl + globVal.vectStart[level],
-            ul + globVal.vectStart[level],
-            rl + globVal.vectStart[level],
-            dl + globVal.vectStart[level]
-        );
 
-        computeRes(
-            nl + level, 
-            ial + globVal.vectStart[level] + level, //car pour chaque level ia possede n+1 elem
-            jal + globVal.matStart[level], //matstart contient la somme des nnz
-            al + globVal.matStart[level],
-            ul + globVal.vectStart[level],
-            bl + globVal.vectStart[level],
-            rl + globVal.vectStart[level]
-        );
+        //getdown
 
-        //ici ligne cruciale avant de restrict residu et on met dans b, 
-        //cad rc = b(level en dessous)
-        restrictR(
-            level,
-            rl + globVal.vectStart[level],
-            bl + globVal.vectStart[level+1]
-        );
+        getDown( level, m, mu1, mu2, 
+				nl, ial, jal, al, bl, ul, rl, dl);
 		
 		//au dessus s'effecctue du haut du v vers le bas
 		tg_rec(level+1, m, mu1, mu2,
@@ -245,23 +225,8 @@ int tg_rec(int level, int m, int mu1,
         //attention revoir b qd prolong
         //et la boucle for ny !!
             //pblm dans indice check
-        addProlCorrection(
-            level+1,
-            ul + globVal.vectStart[level], //ajoute la corr ici
-            ul + globVal.vectStart[level+1]
-        );
-        
-        backwardGS(
-            mu2, 
-            nl + level, 
-            ial + globVal.vectStart[level] + level, //car pour chaque level ia possede n+1 elem
-            jal + globVal.matStart[level], //matstart contient la somme des nnz
-            al + globVal.matStart[level],
-            bl + globVal.vectStart[level],
-            ul + globVal.vectStart[level],
-            rl + globVal.vectStart[level],
-            dl + globVal.vectStart[level]
-        );
+        getUp( level, m, mu1, mu2, 
+				nl, ial, jal, al, bl, ul, rl, dl);
 	}
 	else {
         
@@ -282,6 +247,108 @@ int tg_rec(int level, int m, int mu1,
         
 	}
 	return 0;
+}
+
+//on considere qu'on donne quoi a tg rec ?
+// -> pointer sur la liste glob et on s'occupe des details inside
+int gridCycleIter(int level, int m, int mu1,
+			int mu2, int *nl, int *ial, int *jal,
+		   double *al, double *bl, double *ul, double *rl, double *dl){
+		
+		//des le level 1 on stock pas u2 mais c2 puis 'deviennent des u lorsqu'on ajoute la correction en remontant
+		//pblm tt en haut smoothing Au=b mais en dessous sm Ac = r pareil computeres
+	
+	int cyclev[10][2] = CYCLE;
+    for(int istep = 1; istep <= cyclev[0][0]; istep ++)
+    getDown( level, m, mu1, mu2, 
+            nl, ial, jal, al, bl, ul, rl, dl);
+		
+		//au dessus s'effecctue du haut du v vers le bas
+		
+    
+    getUp( level, m, mu1, mu2, 
+            nl, ial, jal, al, bl, ul, rl, dl);
+
+        
+        
+	return 0;
+}
+
+
+
+int getDown(int level, int m, int mu1,
+			int mu2, int *nl, int *ial, int *jal,
+		   double *al, double *bl, double *ul, double *rl, double *dl){
+
+    forwardGS(
+        mu1, 
+        nl + level, 
+        ial + globVal.vectStart[level] + level, //car pour chaque level ia possede n+1 elem
+        jal + globVal.matStart[level], //matstart contient la somme des nnz
+        al + globVal.matStart[level],
+        bl + globVal.vectStart[level],
+        ul + globVal.vectStart[level],
+        rl + globVal.vectStart[level],
+        dl + globVal.vectStart[level]
+    );
+
+    computeRes(
+        nl + level, 
+        ial + globVal.vectStart[level] + level, //car pour chaque level ia possede n+1 elem
+        jal + globVal.matStart[level], //matstart contient la somme des nnz
+        al + globVal.matStart[level],
+        ul + globVal.vectStart[level],
+        bl + globVal.vectStart[level],
+        rl + globVal.vectStart[level]
+    );
+
+    //ici ligne cruciale avant de restrict residu et on met dans b, 
+    //cad rc = b(level en dessous)
+    restrictR(
+        level,
+        rl + globVal.vectStart[level],
+        bl + globVal.vectStart[level+1]
+    );
+
+    if (level + 1 == LEVELMAX){
+        solveAtCoarseLevel(
+            MODE, 
+            nl + level, 
+            ial + globVal.vectStart[level] + level, //car pour chaque level ia possede n+1 elem
+            jal + globVal.matStart[level], //matstart contient la somme des nnz
+            al + globVal.matStart[level],
+            bl + globVal.vectStart[level],
+            ul + globVal.vectStart[level],
+            rl + globVal.vectStart[level],
+            dl + globVal.vectStart[level]
+        );
+    }
+
+    return 0;
+}
+
+int getUp(int level, int m, int mu1,
+			int mu2, int *nl, int *ial, int *jal,
+		   double *al, double *bl, double *ul, double *rl, double *dl){
+
+    addProlCorrection(
+        level+1,
+        ul + globVal.vectStart[level], //ajoute la corr ici
+        ul + globVal.vectStart[level+1]
+    );
+        
+    backwardGS(
+        mu2, 
+        nl + level, 
+        ial + globVal.vectStart[level] + level, //car pour chaque level ia possede n+1 elem
+        jal + globVal.matStart[level], //matstart contient la somme des nnz
+        al + globVal.matStart[level],
+        bl + globVal.vectStart[level],
+        ul + globVal.vectStart[level],
+        rl + globVal.vectStart[level],
+        dl + globVal.vectStart[level]
+    );
+    return 0;
 }
 
 int forwardGS(int iter, int *n, int *ia, int *ja, double *a,
@@ -1523,4 +1590,68 @@ int allocProb(int m, int *n, int **ia, int **ja,
     	printf("x0l = %d x1l = %d y0l = %d y1l = %d \n", x0l, x1l, y0l, y1l);
 	}
     return 0;
+}
+
+
+
+#define N 4 // Size of the matrix A
+#define MAX_ITER 1000 // Maximum number of iterations for Lanczos
+
+void matvec(double A[N][N], double *x, double *result) {
+    for (int i = 0; i < N; i++) {
+        result[i] = 0.0;
+        for (int j = 0; j < N; j++) {
+            result[i] += A[i][j] * x[j];
+        }
+    }
+}
+
+
+
+void lanczos(double A[N][N], int max_iter, double *lmin, double *lmax) {
+    double *v = (double *)malloc(N * sizeof(double));
+    double *w = (double *)malloc(N * sizeof(double));
+    double alpha, beta, old_beta;
+
+    for (int i = 0; i < N; i++) {
+        v[i] = (double)(rand() % 10); // Random starting vector
+    }
+
+    *lmin = 1e10;
+    *lmax = -1e10;
+
+    beta = 0.0;
+
+    for (int j = 0; j < max_iter; j++) {
+        matvec(A, v, w);
+
+        alpha = 0.0;
+        for (int i = 0; i < N; i++) {
+            alpha += v[i] * w[i];
+        }
+
+        for (int i = 0; i < N; i++) {
+            w[i] = w[i] - alpha * v[i];
+            if (j > 0) {
+                w[i] = w[i] - old_beta * v[i];
+            }
+        }
+
+        beta = 0.0;
+        for (int i = 0; i < N; i++) {
+            beta += w[i] * w[i];
+        }
+        beta = sqrt(beta);
+
+        // Update approximations of the eigenvalues
+        if (alpha + beta > *lmax) *lmax = alpha + beta;
+        if (alpha - beta < *lmin) *lmin = alpha - beta;
+
+        for (int i = 0; i < N; i++) {
+            v[i] = w[i] / beta;
+        }
+    }
+
+    free(v);
+    free(w);
 }
