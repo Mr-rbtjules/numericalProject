@@ -27,6 +27,9 @@ int mg_iter(int iter, int levelMax, int m, int mu1, int mu2, int *nl, int *ial,
 int tg_rec(int level, int m, int mu1,
 			int mu2, int *nl, int *ial, int *jal,
 		   double *al, double *bl, double *ul, double *rl, double *dl);
+void FCycleLoop(int level, int m, int mu1,
+			int mu2, int *nl, int *ial, int *jal,
+		   double *al, double *bl, double *ul, double *rl, double *dl);
 int getDown(int level, int m, int mu1,
 			int mu2, int *nl, int *ial, int *jal,
 		   double *al, double *bl, double *ul, double *rl, double *dl);
@@ -96,6 +99,8 @@ int computeRes(int *n, int *ia, int *ja, double *a,
                     double *u, double *b, double *r);
 void printVect(void *vect, int size, int type);
 void plot_res(double *r, int level);
+void simillar(int level, char **fig, int *step);
+void plotCycle();
 
 // Global variable //
 void initGlobVal();

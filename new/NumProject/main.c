@@ -15,25 +15,14 @@ int main() {
     initGlobVal();
 
     int p = (globVal.m[0]-1)/(globVal.domain[1] - globVal.domain[0]);
-    printf("%d\n", p);
+    printf("h per unit %d\n", p);
 
-    mg_method(15);
+    
+    mg_method(10);
+    //plotCycle();
     
     freeGlobVal();
-    
-    /*double A[N][N] = {
-        {4, 0, 0, 0},
-        {0, 3, 0, 0},
-        {0, 0, 2, 0},
-        {0, 0, 0, 1}
-    };
 
-    double lmin, lmax;
-    lanczos(A, MAX_ITER, &lmin, &lmax);
-
-    printf("Min eigenvalue approximation: %f\n", lmin);
-    printf("Max eigenvalue approximation: %f\n", lmax);
-*/
 /*    initGlobVal();  
     //pour remplacer nnz on peut utiliser ia dernier elem ? 
     int *nl;

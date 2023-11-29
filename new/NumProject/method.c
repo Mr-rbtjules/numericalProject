@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 
 #include "proto.h"
 
@@ -24,24 +25,28 @@
 #define DOMAIN8 "[0, 6] × [0, 10] [0, 4] × [3, 10]"
 #define DOMAIN DOMAIN1
 //discretisation 
-#define M 300
-#define LEVELMAX 5
+#define M 100
+#define LEVELMAX 4
 #define MU1 4
 #define MU2 4
 #define MODE 1 //0umpf 1 sym 2jacobi 
 #define ITERCORE 20
-#define CYCLEW {{8}, {LEVELMAX,1} , {1,0},{1,1},{2,0},{2,1},{1,0},{1,1} , {LEVELMAX-1,0}} //1 :descend 0 :monte et symetrize
-#define CYCLEV {{1},{LEVELMAX,1}}
-#define CYCLE CYCLEV
-
+#define CYCLEW 0
+#define CYCLEF 0 //V par defaut
 
 
 /*
+cycle V
 ce qui fonctionne pour 1500 : 7 4 4 1 20
 
 6145
 
+300
+  
+cycle w 10 iter 5 4 4 10
+cycle v 13 iter 5 4 4 20 un peu plus rapide 1.3
 
+cycle f  10 iter 5 4 4 20 1.3s
 */
 
 
@@ -52,9 +57,19 @@ ce qui fonctionne pour 1500 : 7 4 4 1 20
  \    /2
   \  /3
    \/4 = level max = nb de fois qu'on restr
+
+0               0
+ \             /
+  1           1
+   \         /
+    2       2
+     \     /
+      3   3
+       \ /
+        4 
 */
 //print parameters
-#define EXPLICIT 1
+#define EXPLICIT 0
 #define LOAD 1
 #define CHRONO 1
 #define RELAX 0
@@ -65,8 +80,7 @@ globVal_s globVal = { NULL, NULL, NULL, NULL};
 
 
 
-/*
-Details : accorder computeresnorm mgmethod et tt
+/*simillar(level+1, fig, step);t tt
 pour avoir mm ordre ia ja u r, etc
 */
 
@@ -102,7 +116,7 @@ int mg_method(int iter){
 
 	for (int l = 0; l <= LEVELMAX; l++){
 		//adresses of each vector is simply the pointer shifted
-        // bl not shifted because only the first needed in prob
+        // bl not shifted because only the firs
 		probMg(
             globVal.m[l], 
             nl + l, 
@@ -132,6 +146,8 @@ int mg_method(int iter){
         printf("\nTemps de solution multigrid method (CPU): %5.1f sec\n",t2-t1);   
     }
 
+    plotCycle();
+
     //top level so no shift
     printf("\n final res : %lf\n", computeResNorm(
             nl, ial, jal, al, bl, ul, rl
@@ -153,6 +169,7 @@ int mg_method(int iter){
 
 	return 0;
 }
+
 
 int mg_iter(int iter, int levelMax, int m, int mu1, int mu2, int *nl, int *ial,
              int *jal, double *al, double *rl, double *ul, double *dl, double *bl){
@@ -210,10 +227,11 @@ int tg_rec(int level, int m, int mu1,
 		tg_rec(level+1, m, mu1, mu2,
 		       nl, ial, jal, al, bl, ul, rl, dl);
         
-        
-        if (EXPLICIT){
-            printf("\n\n  LEVEL : %d\n\n", level);
+        if (CYCLEW){
+            tg_rec(level+1, m, mu1, mu2,
+		       nl, ial, jal, al, bl, ul, rl, dl);
         }
+        
         //recursivité , ici important on repart avec Au = b avec u = c 
         //et b = r = R(res syst level-1)
         //
@@ -225,8 +243,20 @@ int tg_rec(int level, int m, int mu1,
         //attention revoir b qd prolong
         //et la boucle for ny !!
             //pblm dans indice check
-        getUp( level, m, mu1, mu2, 
+        getUp( level + 1, m, mu1, mu2, 
 				nl, ial, jal, al, bl, ul, rl, dl);
+        if (EXPLICIT){
+            printf("\n\n  LEVEL : %d\n\n", level);
+        }
+
+        if (level > 0){
+            if (CYCLEF){
+                FCycleLoop(level, m, mu1, mu2,
+		       nl, ial, jal, al, bl, ul, rl, dl);
+            }
+        }
+
+        
 	}
 	else {
         
@@ -249,30 +279,45 @@ int tg_rec(int level, int m, int mu1,
 	return 0;
 }
 
-//on considere qu'on donne quoi a tg rec ?
-// -> pointer sur la liste glob et on s'occupe des details inside
-int gridCycleIter(int level, int m, int mu1,
+void FCycleLoop(int level, int m, int mu1,
 			int mu2, int *nl, int *ial, int *jal,
 		   double *al, double *bl, double *ul, double *rl, double *dl){
-		
-		//des le level 1 on stock pas u2 mais c2 puis 'deviennent des u lorsqu'on ajoute la correction en remontant
-		//pblm tt en haut smoothing Au=b mais en dessous sm Ac = r pareil computeres
-	
-	int cyclev[10][2] = CYCLE;
-    for(int istep = 1; istep <= cyclev[0][0]; istep ++)
-    getDown( level, m, mu1, mu2, 
-            nl, ial, jal, al, bl, ul, rl, dl);
-		
-		//au dessus s'effecctue du haut du v vers le bas
-		
-    
-    getUp( level, m, mu1, mu2, 
-            nl, ial, jal, al, bl, ul, rl, dl);
 
-        
-        
-	return 0;
+    int initLevel = level;
+    while (level < LEVELMAX){
+        getDown( level, m, mu1, mu2, 
+				nl, ial, jal, al, bl, ul, rl, dl);
+        level += 1;
+        if (EXPLICIT){
+            printf("\n\n  LEVEL : %d\n\n", level);
+        }
+    }
+
+    solveAtCoarseLevel(
+        MODE, 
+        nl + level, 
+        ial + globVal.vectStart[level] + level, //car pour chaque level ia possede n+1 elem
+        jal + globVal.matStart[level], //matstart contient la somme des nnz
+        al + globVal.matStart[level],
+        bl + globVal.vectStart[level],
+        ul + globVal.vectStart[level],
+        rl + globVal.vectStart[level],
+        dl + globVal.vectStart[level]
+    );
+
+    while (level > initLevel){
+        getUp( level, m, mu1, mu2, 
+				nl, ial, jal, al, bl, ul, rl, dl);
+        level -= 1;
+        if (EXPLICIT){
+            printf("\n\n  LEVEL : %d\n\n", level);
+        }
+    } 
 }
+
+//on considere qu'on donne quoi a tg rec ?
+// -> pointer sur la liste glob et on s'occupe des details inside
+
 
 
 
@@ -310,20 +355,6 @@ int getDown(int level, int m, int mu1,
         bl + globVal.vectStart[level+1]
     );
 
-    if (level + 1 == LEVELMAX){
-        solveAtCoarseLevel(
-            MODE, 
-            nl + level, 
-            ial + globVal.vectStart[level] + level, //car pour chaque level ia possede n+1 elem
-            jal + globVal.matStart[level], //matstart contient la somme des nnz
-            al + globVal.matStart[level],
-            bl + globVal.vectStart[level],
-            ul + globVal.vectStart[level],
-            rl + globVal.vectStart[level],
-            dl + globVal.vectStart[level]
-        );
-    }
-
     return 0;
 }
 
@@ -332,21 +363,21 @@ int getUp(int level, int m, int mu1,
 		   double *al, double *bl, double *ul, double *rl, double *dl){
 
     addProlCorrection(
-        level+1,
-        ul + globVal.vectStart[level], //ajoute la corr ici
-        ul + globVal.vectStart[level+1]
+        level,
+        ul + globVal.vectStart[level-1], //ajoute la corr ici
+        ul + globVal.vectStart[level]
     );
         
     backwardGS(
         mu2, 
-        nl + level, 
-        ial + globVal.vectStart[level] + level, //car pour chaque level ia possede n+1 elem
-        jal + globVal.matStart[level], //matstart contient la somme des nnz
-        al + globVal.matStart[level],
-        bl + globVal.vectStart[level],
-        ul + globVal.vectStart[level],
-        rl + globVal.vectStart[level],
-        dl + globVal.vectStart[level]
+        nl + level-1, 
+        ial + globVal.vectStart[level-1] + level-1, //car pour chaque level ia possede n+1 elem
+        jal + globVal.matStart[level-1], //matstart contient la somme des nnz
+        al + globVal.matStart[level-1],
+        bl + globVal.vectStart[level-1],
+        ul + globVal.vectStart[level-1],
+        rl + globVal.vectStart[level-1],
+        dl + globVal.vectStart[level-1]
     );
     return 0;
 }
@@ -1462,6 +1493,104 @@ void plot_res(double *r, int level){
 }
 
 
+void plotDown(int level, char **fig, int *step){
+    if (fig[level*2][*step - 1] != level + '0'){
+        fig[level*2][*step] = level + '0';
+        *step +=1;
+    }
+    
+    fig[level*2+1][*step] = '\\';
+    *step +=1;
+}
+
+void plotUp(int level, char **fig, int *step){
+
+        //getup 
+        // print / step+1
+        //print level step+1
+        fig[(level-1)*2 + 1][*step] = '/';
+        *step +=1;
+        fig[(level-1)*2][*step] = (level-1) + '0';
+        *step +=1;
+}
+
+void FPart(int level, char **fig, int *step){
+    int initLevel = level;
+    printf("level %d\n", level);
+    while (level < LEVELMAX){
+        level += 1;
+        fig[level*2-1][*step] = '\\';
+        *step +=1;
+        if (fig[level*2][*step - 1] != level + '0'){
+            fig[level*2][*step] = level + '0';
+            *step +=1;
+        }
+        
+    }
+    while (level > initLevel){
+        plotUp(level, fig,step);
+        level -= 1;
+    } 
+}
+
+void simillar(int level, char **fig, int *step){
+
+    if (level < LEVELMAX){
+        plotDown(level, fig, step);
+        /*for (int i = 0; i < (LEVELMAX)*2 +1; i++) {
+            printf("%s\n", fig[i]);
+        }  */ 
+        
+        simillar(level+1, fig, step);
+        if (CYCLEW){
+            simillar(level+1, fig, step);
+        }
+        
+        plotUp(level+1, fig,step); 
+        if (level > 0){
+            if (CYCLEF){
+                FPart(level,fig,step);
+            }
+        }
+    }
+    else{            
+        if (fig[level*2][*step - 1] != level + '0'){
+            fig[level*2][*step] = level + '0';
+            *step +=1;
+        }
+    }
+
+}
+
+void plotCycle(){
+    int numberOfLines = (LEVELMAX)*2 +1; 
+    char **paragraph = malloc(numberOfLines * sizeof(char*)); 
+    int sizemax = 200;
+    for (int i = 0; i < numberOfLines; i++) {
+        paragraph[i] = malloc(sizemax * sizeof(char)); // Allocate memory for each line (100 characters)
+        for (int j = 0; j < sizemax; j++){
+            paragraph[i][j] = ' ';
+        }
+    }
+    
+    int step = 0;
+    simillar(0, paragraph, &step);
+
+    // Print the paragraph
+    printf("\n             MULTIGRID CYCLE \n");
+    printf("Top Level\n");
+    for (int i = 0; i < numberOfLines; i++) {
+        printf("%s\n", paragraph[i]);
+    }
+    printf("Bottom Level\n");
+
+    // Free the allocated memory
+    for (int i = 0; i < numberOfLines; i++) {
+        free(paragraph[i]);
+    }
+    free(paragraph);
+}
+
 
 
 /// GLOBAL VARIABLES ///
@@ -1592,66 +1721,112 @@ int allocProb(int m, int *n, int **ia, int **ja,
     return 0;
 }
 
-
-
-#define N 4 // Size of the matrix A
-#define MAX_ITER 1000 // Maximum number of iterations for Lanczos
-
-void matvec(double A[N][N], double *x, double *result) {
-    for (int i = 0; i < N; i++) {
-        result[i] = 0.0;
-        for (int j = 0; j < N; j++) {
-            result[i] += A[i][j] * x[j];
-        }
-    }
-}
-
-
-
-void lanczos(double A[N][N], int max_iter, double *lmin, double *lmax) {
-    double *v = (double *)malloc(N * sizeof(double));
-    double *w = (double *)malloc(N * sizeof(double));
-    double alpha, beta, old_beta;
-
-    for (int i = 0; i < N; i++) {
-        v[i] = (double)(rand() % 10); // Random starting vector
-    }
-
-    *lmin = 1e10;
-    *lmax = -1e10;
-
-    beta = 0.0;
-
-    for (int j = 0; j < max_iter; j++) {
-        matvec(A, v, w);
-
-        alpha = 0.0;
-        for (int i = 0; i < N; i++) {
-            alpha += v[i] * w[i];
-        }
-
-        for (int i = 0; i < N; i++) {
-            w[i] = w[i] - alpha * v[i];
-            if (j > 0) {
-                w[i] = w[i] - old_beta * v[i];
+void plotVCycle(int levelMax, int cycle){
+    printf("\nTop Level\n");
+    for (int i = 0; i <= 2*levelMax; i++){
+       //espace(=i) nombre espace(1+(levmax*2)-1)*2 nombre
+        if ( i % 2 == 0){
+            int nombre = i/2;
+            //espace:
+            for (int j=0; j < i; j++){
+                printf(" ");
+            }
+            printf("%d", nombre);
+            if (i != 2*levelMax){
+                int spaces = 1+((levelMax*2)-1)*2 -2*i; 
+                for (int j=0; j < spaces; j++){
+                    printf(" ");
+                }
+                printf("%d\n", nombre);
             }
         }
+        // espace \ espace /
+        else {
+            //espace:
+            for (int j=0; j < i; j++){
+                printf(" ");
+            }
+            printf("\\");
+            
+            int spaces = 1+((levelMax*2)-1)*2 -2*i; 
+            for (int j=0; j < spaces; j++){
+                printf(" ");
+            }
+            printf("/\n");
+            
 
-        beta = 0.0;
-        for (int i = 0; i < N; i++) {
-            beta += w[i] * w[i];
         }
-        beta = sqrt(beta);
+    }
+    printf("\nBottom Level\n");
+}
 
-        // Update approximations of the eigenvalues
-        if (alpha + beta > *lmax) *lmax = alpha + beta;
-        if (alpha - beta < *lmin) *lmin = alpha - beta;
 
-        for (int i = 0; i < N; i++) {
-            v[i] = w[i] / beta;
+
+void lanczosAlgo(int iter, int n, int *ia, int *ja, 
+                 double *a, double **alpha, double **beta){
+
+    double **v;
+    getRandomUnitVector(&v, n , iter);
+
+    (*alpha) = (double *)malloc(iter * sizeof(double));
+    (*beta) = (double *)malloc((iter+1) * sizeof(double));
+
+    (*beta)[0] = 0;
+
+    for (int i = 1; i <= iter; i++){
+
+    }
+    free(v);
+}
+
+int getRandomUnitVector(double ***v, int n, int iter){
+    (*v) = malloc((iter+2) * sizeof(double*));
+    for (int i = 0; i < (iter+2); i++){
+        (*v)[i] = (double *)malloc(n * sizeof(double));
+        if ((*v)[i] == NULL){
+            return 1;
         }
     }
 
-    free(v);
-    free(w);
+    // init randomness
+    srand((unsigned int)time(NULL));
+
+    double norm = 0;
+    for (int i = 0; i < n; i++) {
+        (*v)[1][i] = (double)rand() / RAND_MAX * 2.0 - 1.0; // Random values bet -1 and 1
+        norm += (*v)[1][i] * (*v)[1][i];
+    }
+
+    norm = sqrt(norm);
+
+    // Normalize the vector
+    for (int i = 0; i < n; i++) {
+        (*v)[1][i] /= norm;
+        (*v)[0][i] = 0;
+    }
+    return 0;
 }
+
+
+int multCsrAddvector(int n, int *ia, int *ja, 
+                 double *a, double *v2, double *v1, double *v0, double *beta){
+	
+	
+	int i = 0;
+	int jai = 0;
+	while (i < n){
+		int ite = ia[i + 1] - ia[i];
+		int j = 0;
+		while (j < ite){
+			v2[i] += a[jai + j] * v1[ja[jai + j]]; 		
+			j += 1;
+		}
+        v2[i] -= (*beta) * v0[i];
+		jai += ite;
+		i += 1;
+	}
+
+	return 0;
+}
+
+
