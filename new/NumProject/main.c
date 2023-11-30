@@ -18,8 +18,7 @@ int main() {
     printf("h per unit %d\n", p);
 
     
-    mg_method(10);
-    //plotCycle();
+    mg_method(15);
     
     freeGlobVal();
 

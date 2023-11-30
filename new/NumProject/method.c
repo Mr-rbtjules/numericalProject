@@ -23,15 +23,15 @@
 #define DOMAIN6 "[0, 6] × [0, 10] [0, 4] × [0, 3]"
 #define DOMAIN7 "[0, 6] × [0, 10] [2, 4] × [5, 10]"
 #define DOMAIN8 "[0, 6] × [0, 10] [0, 4] × [3, 10]"
-#define DOMAIN DOMAIN1
+#define DOMAIN DOMAIN5
 //discretisation 
-#define M 100
-#define LEVELMAX 4
+#define M 50
+#define LEVELMAX 2
 #define MU1 4
 #define MU2 4
 #define MODE 1 //0umpf 1 sym 2jacobi 
 #define ITERCORE 20
-#define CYCLEW 0
+#define CYCLEW 1
 #define CYCLEF 0 //V par defaut
 
 
@@ -69,7 +69,7 @@ cycle f  10 iter 5 4 4 20 1.3s
         4 
 */
 //print parameters
-#define EXPLICIT 0
+#define EXPLICIT 1
 #define LOAD 1
 #define CHRONO 1
 #define RELAX 0
@@ -1761,72 +1761,328 @@ void plotVCycle(int levelMax, int cycle){
 }
 
 
+//lanczos iter genre 50 max c bon si n 1000 ou plus a tester
+int computeExtremeEv(int *n, int lanczosIter, int *ia, int *ja, 
+                    double *a, double *lowest, double *largest){
+    //fairte list param necessaire : 
+    //-> iter la
+    //faire list memoire necessaire
 
-void lanczosAlgo(int iter, int n, int *ia, int *ja, 
+    //tridiag de A avec lanczos
+    double *alphal; //size ?
+    double *betal; // size ?
+    lanczosAlgo(lanczosIter, n, ia, ja, a, &alphal, &betal); //->3 malloc v + 2 malloc al bet
+
+    //seek for lowest e vector (succesive thomas resol for Tx=v v=x)
+    //inverse iteration method
+    double *evect; //init
+    double mu = computeMu(alphal, betal);
+    int max_iter_Thom = 40; 
+    double evTol = 1e-6; //?
+    invIter(alphal, betal, evect, n, &mu, max_iter_Thom, evTol);
+    //rayleigh quot for eigenvalue
+    double *Ax; //init
+    rayleighQuot(n, lowest, ia, ja, a, Ax, evect);
+
+    //seek for largest e vector (T-muI)x=v mu = μ=max⁡(∣αj∣)+max⁡(∣βj∣)
+    //shifted inverse iteration method
+    //double *evect; //reinit
+    mu = 0;
+    invIter(alphal, betal, evect, n, &mu, max_iter_Thom, evTol);
+    //rayleigh quot for eigenvalue
+    rayleighQuot(n, largest, ia, ja, a, Ax, evect);
+
+    free(evect);
+    free(Ax);
+}
+
+
+//1000X1000 seul 50 iter suffisant !!mettre en param to see speed
+int lanczosAlgo(int iter, int *n, int *ia, int *ja, 
                  double *a, double **alpha, double **beta){
 
-    double **v;
-    getRandomUnitVector(&v, n , iter);
+    int tol = 1e-12;
+
+    double *v_current = malloc(*n * sizeof(double));
+    double *v_previous = calloc(*n, sizeof(double)); // Initializes to zero
+    double *v_next = malloc(*n * sizeof(double));
+
+    if (v_current == NULL || v_next == NULL || v_previous == NULL){
+        return 1;
+    }
+
+    initRandomV(v_current, n);
 
     (*alpha) = (double *)malloc(iter * sizeof(double));
     (*beta) = (double *)malloc((iter+1) * sizeof(double));
 
-    (*beta)[0] = 0;
+    (*beta)[0] = 0; //b1=0
+    for (int j = 1; j <= iter; j++){
+        //vj+1=next = v[2] au debut
+        //direct wj dans vj+1 = A*vj - betaj*vj-1
+        multCsrSubvector(n, ia, ja, a, v_next, v_current, v_previous, &((*beta)[j-1]));
+        //alphaj = <wj,vj> = <vj+1,vj>
+        scalProd(n, v_next, v_current, &((*alpha)[j-1]));//j-1 car ind 0
+        //wj=vj+1=vj+1 - alj*vj
+        subVectProd(n, &(*alpha)[j-1], v_next, v_current);
+        //bj+1 = ||wj==vj+1 ||
+        computeVectNorm2(n,&((*beta)[j]), v_next);
 
-    for (int i = 1; i <= iter; i++){
+        //tol ?
+        if ( (*beta)[j] < tol){
+            j = iter +1;
+        }
 
+        double *temp = v_previous;
+        v_previous = v_current;
+        v_current = v_next;
+        v_next = temp;
     }
-    free(v);
+
+
+    free(v_current);
+    free(v_next);
+    free(v_previous);
 }
 
-int getRandomUnitVector(double ***v, int n, int iter){
-    (*v) = malloc((iter+2) * sizeof(double*));
-    for (int i = 0; i < (iter+2); i++){
-        (*v)[i] = (double *)malloc(n * sizeof(double));
-        if ((*v)[i] == NULL){
-            return 1;
+//allocateoutside ?
+int invIter(double *alpha, double *beta, double *v, 
+            int *n, double *mu, int max_iter, double tol){
+
+    //iterative thomas algo with mu=0
+    double *y = malloc(*n * sizeof(double));
+    if (y == NULL) {
+        // Handle memory allocation failure
+        return 1;
+    }
+
+    double norm;
+    double error;
+    for (int iter = 0; iter < max_iter; iter++) {
+        // Solve Ty = v
+        thomas_algorithm(alpha, beta, v, y, mu, n);
+
+        // Normalize y and copy it back to v
+        normalize(n, y);
+        //replace v par y
+        for (int i = 0; i < *n; i++) {
+            v[i] = y[i];
+        }
+
+        // Check for convergence
+        computeVectNorm2( n, &norm, v);
+        error = norm - 1.0;
+        if ((error < 0 && error > -tol) 
+            || (error >= 0 && error < tol)) {
+            iter = max_iter;
         }
     }
 
+    // Copy the result to x
+    
+
+    free(y);
+
+}
+
+
+
+void thomas_algorithm(double *alpha, double *beta, 
+                      double *v, double *x, double *mu, int *n){
+    //solve(T-uI)x = v
+    double *c_prime = malloc(*n * sizeof(double));
+    if (c_prime == NULL) {
+        // Handle memory allocation failure
+    }
+
+    c_prime[0] = beta[0] / (alpha[0] - *mu);
+    v[0] = v[0] / (alpha[0] - *mu);
+
+    // Forward elimination
+    for (int i = 1; i < *n; i++) {
+        double m = 1.0 / (alpha[i] - *mu - beta[i-1] * c_prime[i-1]);
+        c_prime[i] = beta[i] * m;
+        v[i] = (v[i] - beta[i-1] * v[i-1]) * m;
+    }
+
+    // Backward substitution
+    x[*n-1] = v[*n-1];
+    for (int i = *n-2; i >= 0; i--) {
+        x[i] = v[i] - c_prime[i] * x[i+1];
+    }
+
+    free(c_prime);
+}
+
+//check randomness
+int initRandomV(double *v, int *n){
+    
     // init randomness
     srand((unsigned int)time(NULL));
 
     double norm = 0;
-    for (int i = 0; i < n; i++) {
-        (*v)[1][i] = (double)rand() / RAND_MAX * 2.0 - 1.0; // Random values bet -1 and 1
-        norm += (*v)[1][i] * (*v)[1][i];
+    for (int i = 0; i < *n; i++) {
+        v[i] = (double)rand() / RAND_MAX * 2.0 - 1.0; // Random values bet -1 and 1
+        norm += v[i] * v[i];
     }
 
     norm = sqrt(norm);
 
     // Normalize the vector
-    for (int i = 0; i < n; i++) {
-        (*v)[1][i] /= norm;
-        (*v)[0][i] = 0;
+    for (int i = 0; i < *n; i++) {
+        v[i] /= norm;
     }
     return 0;
 }
 
 
-int multCsrAddvector(int n, int *ia, int *ja, 
-                 double *a, double *v2, double *v1, double *v0, double *beta){
-	
+int multCsrSubvector(int *n, int *ia, int *ja, double *a, 
+                     double *v2, double *v1, double *v0, double *beta){
+	//do v2 = A*v1 - beta*v0
 	
 	int i = 0;
 	int jai = 0;
-	while (i < n){
+	while (i < *n){
 		int ite = ia[i + 1] - ia[i];
 		int j = 0;
+        v2[i] = 0;
 		while (j < ite){
 			v2[i] += a[jai + j] * v1[ja[jai + j]]; 		
 			j += 1;
 		}
+        //comme ca direct 
         v2[i] -= (*beta) * v0[i];
+
 		jai += ite;
 		i += 1;
 	}
 
 	return 0;
 }
+
+int multCsrVector(int *n, int *ia, int *ja, 
+                 double *a, double *Ax, double *x){
+	//do v2 = A*v1 - beta*v0
+	
+	int i = 0;
+	int jai = 0;
+	while (i < *n){
+		int ite = ia[i + 1] - ia[i];
+		int j = 0;
+        Ax[i] = 0;
+		while (j < ite){
+			Ax[i] += a[jai + j] * x[ja[jai + j]]; 		
+			j += 1;
+		}
+		jai += ite;
+		i += 1;
+	}
+
+	return 0;
+}
+
+int rayleighQuot(int *n, double *res, int *ia, int *ja, 
+                 double *a, double *Ax, double *x){
+
+    multCsrVector(n, ia, ja, a, Ax, x);
+    double xAx;
+    double xx;
+    scalProd( n, x, Ax, &xAx);
+    scalProd( n , x, x, &xx);
+
+    if (xx != 0){
+        *res = xAx/xx;
+    }
+    else {
+        return 1;
+    }
+
+    return 0;
+}
+
+int scalProd(int *n, double *v1, double *v2, double *res){
+
+    *res = 0;
+    int i = 0;
+    while (i < *n){
+        *res += v1[i] * v2[i];
+        i += 1;
+    }
+
+    return 0;
+}
+
+int computeVectNorm2(int *n, double *norm, double *v){
+
+    *norm = 0;
+    for (int i = 0; i < *n; i++) {
+        *norm += v[i] * v[i];
+    }
+    *norm = sqrt(*norm);
+    return 0;
+}
+
+int normalize(int *n, double *v){
+
+    double norm;
+    computeVectNorm2(n, &norm, v);
+    if (norm > 0){
+        for(int i = 0; i < *n; i++){
+            v[i] /= norm;
+        }
+    }
+    else{
+        return 1;
+    }
+    return 0;
+}
+
+int vectScalDivide(int *n, double *v, double *beta){
+
+    int i = 0;
+    while (i < *n){
+        v[i] /= *beta;
+        i += 1;
+    }
+    return 0;
+}
+
+int subVectProd(int *n, double *alpha, double *v2, double *v1){
+
+    int i = 0;
+    while (i < *n){
+        v2[i] -= (*alpha) * v1[i];
+        i += 1;
+    }
+}
+
+int computeMu(double *alpha, double *beta, int *n, double *mu) {
+    double max_alpha = fabs(alpha[0]);
+    double max_beta = fabs(beta[0]);
+
+    for (int i = 1; i < n; i++) {
+        if (fabs(alpha[i]) > max_alpha) {
+            max_alpha = fabs(alpha[i]);      //!!!!al bet not same size
+        }
+        if (i < n - 1 && fabs(beta[i]) > max_beta) {
+            max_beta = fabs(beta[i]);
+        }
+    }
+
+    *mu =  max_alpha + max_beta;
+}
+
+//inverse iteration -> smallest
+//random v, u=0
+
+//solve (T)x = v
+// v =x and repeat
+
+//shifted inverse iteration --> largest
+// μ=max⁡(∣αj∣)+max⁡(∣βj∣)
+////solve (T-u)x = v
+//norm v
+//v = x repeat
+//rayleigh quotient
 
 

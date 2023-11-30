@@ -121,10 +121,27 @@ int solve_umfpack(int n, int *ia, int *ja, double *a,
 int allocProb(int m, int *n, int **ia, int **ja, 
      		  double **a, double **b, double **u, double **r);
 
-
-
-#define N 4
-void lanczos(double A[N][N], int max_iter, double *lmin, double *lmax);
-void matvec(double A[N][N], double *x, double *result);
-
+//extreme ev 
+int computeExtremeEv(int *n, int lanczosIter, int *ia, int *ja, 
+                    double *a, double *lowest, double *largest);
+//1000X1000 seul 50 iter suffisant !!mettre en param to see speed
+int lanczosAlgo(int iter, int *n, int *ia, int *ja, 
+                 double *a, double **alpha, double **beta);
+int invIter(double *alpha, double *beta, double *v, 
+            int *n, double *mu, int max_iter, double tol)
+void thomas_algorithm(double *alpha, double *beta, 
+					  double *v, double *x, double mu, int *n);
+//check randomness
+int initRandomV(double *v, int *n);
+int multCsrSubvector(int *n, int *ia, int *ja, 
+                 double *a, double *v2, double *v1, double *v0, double *beta);
+int multCsrVector(int *n, int *ia, int *ja, 
+                 double *a, double *Ax, double *x);
+int rayleighQuot(int *n, double *res, int *ia, int *ja, 
+                 double *a, double *Ax, double *x);
+int scalProd(int *n, double *v1, double *v2, double *res);
+int computeVectNorm2(int *n, double *norm, double *v);
+int normalize(int *n, double *v);
+int vectScalDivide(int *n, double *v, double *beta);
+int subVectProd(int *n, double *alpha, double *v2, double *v1);
 #endif
