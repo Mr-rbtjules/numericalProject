@@ -25,14 +25,14 @@
 #define DOMAIN8 "[0, 6] × [0, 10] [0, 4] × [3, 10]"
 #define DOMAIN DOMAIN5
 //discretisation 
-#define M 50
-#define LEVELMAX 2
+#define M 300
+#define LEVELMAX 5
 #define MU1 4
 #define MU2 4
 #define MODE 1 //0umpf 1 sym 2jacobi 
 #define ITERCORE 20
-#define CYCLEW 1
-#define CYCLEF 0 //V par defaut
+#define CYCLEW 0
+#define CYCLEF 1 //V par defaut
 
 
 /*
@@ -88,6 +88,131 @@ pour avoir mm ordre ia ja u r, etc
 
 
 /// RESOL ///
+
+int CGmethod(int iter){
+    //INIT PRECONDITION PART
+    
+	//initit memory and pointers
+	//compute all the coarse matrix and nl
+    int *nl = NULL;
+
+    //liste : chaque elem pointe vers 1 matrice 
+    //d'un certain level (ici matrice == liste)
+	int *ial = NULL; 
+	int *jal = NULL;
+	double *al = NULL;                                                         
+	double *rl = NULL;
+	double *ul = NULL;
+	double *dl = NULL;
+	
+    //'b' conceptuel, cad b au niveau 0 mais ri au niveau inf
+	double *rCGl = NULL;  
+
+	//we pass the adress for each level
+	allocGrids(&nl, &ial, &jal, &al, &rCGl, &dl, &rl, &ul);
+    
+	//precomputation of all Ac and bc
+
+	for (int l = 0; l <= LEVELMAX; l++){
+		//adresses of each vector is simply the pointer shifted
+        // bl not shifted because only the firs
+		probMg(
+            globVal.m[l], 
+            nl + l, 
+            ial + globVal.vectStart[l] + l,
+            jal + globVal.matStart[l], 
+            al + globVal.matStart[l],
+            rCGl
+        );
+	}
+	
+	int startLevelTg = 0; 
+
+	//u0 = 0
+	preInitialization(ul);
+
+    //INIT CONJUGUATE GRADIANT PART
+    double *uCG = malloc(*nl * sizeof(double));
+    double *dCG = malloc(*nl * sizeof(double)); 
+    double *AdCG = malloc(*nl * sizeof(double));
+    double *bCG = malloc(*nl * sizeof(double));
+    double save_old = 1.0;
+    double save_new = 1.0; 
+    double alpha;
+    double beta;
+
+    
+    /*
+    ucg0 = 0
+    rcg0 = b
+    beta0 = 0
+    0first precond z0 = B-1rch0 => Au = b mg
+    dcg0 = z0 (copy)
+    save old, save new
+    boucle
+    Adcg = A*dcg
+    save = <rcg,z>
+    alpha0 = save/<dcg,Adcg>
+    ucg += al*dcg
+    r-= al*Adcg
+    */
+    
+   //init CG
+   //uCG0=0
+    preInitialization(uCG);
+    //b computated in prob into rCG
+    copy( nl, rCGl, bCG);
+    computeRes(nl, ial, jal, al, uCG, bCG, rCGl);
+    beta = 0;
+    mg_iter( 1, LEVELMAX, globVal.m[0], 
+            MU1, MU2, nl, ial ,jal,al, rl,ul,dl,rCGl); // dans ul on a z
+    if (LOAD){
+		printf("\n Load percentage : \n");
+	}
+	//start iterations of the multigrid cycle (tg_rec)
+	double t1 = mytimer();
+    
+
+
+
+
+
+    double t2 = mytimer();
+    if (CHRONO){
+        printf("\nTemps de solution multigrid method (CPU): %5.1f sec\n",t2-t1);   
+    }
+
+    plotCycle();
+
+    //top level so no shift
+    printf("\n final res : %lf\n", computeResNorm(
+            nl, ial, jal, al, bCG, ul, rl
+        ));
+
+    if (PLOT){
+        plot_res(rl + globVal.vectStart[startLevelTg], startLevelTg);
+    }
+    
+
+    free(nl);
+    free(ial);
+    free(jal);
+    free(al);
+    free(rCGl);
+    free(dl);
+    free(ul);
+    free(rl);
+
+    free(uCG);
+    free(bCG);
+    free(dCG);
+    free(AdCG);
+
+
+	return 0;
+}
+
+
 
 
 int mg_method(int iter){
@@ -1763,7 +1888,7 @@ void plotVCycle(int levelMax, int cycle){
 
 //lanczos iter genre 50 max c bon si n 1000 ou plus a tester
 int computeExtremeEv(int *n, int lanczosIter, int *ia, int *ja, 
-                    double *a, double *lowest, double *largest){
+                    double *a, double *lowest, double *largest, int forward){
     //fairte list param necessaire : 
     //-> iter la
     //faire list memoire necessaire
@@ -1771,12 +1896,14 @@ int computeExtremeEv(int *n, int lanczosIter, int *ia, int *ja,
     //tridiag de A avec lanczos
     double *alphal; //size ?
     double *betal; // size ?
+    //add forward and Bx=Av gauss res
     lanczosAlgo(lanczosIter, n, ia, ja, a, &alphal, &betal); //->3 malloc v + 2 malloc al bet
 
     //seek for lowest e vector (succesive thomas resol for Tx=v v=x)
     //inverse iteration method
     double *evect; //init
-    double mu = computeMu(alphal, betal);
+    double mu; 
+    computeMu(alphal, betal, n , &mu);
     int max_iter_Thom = 40; 
     double evTol = 1e-6; //?
     invIter(alphal, betal, evect, n, &mu, max_iter_Thom, evTol);
@@ -1887,7 +2014,7 @@ int invIter(double *alpha, double *beta, double *v,
 
 
 
-void thomas_algorithm(double *alpha, double *beta, 
+int thomas_algorithm(double *alpha, double *beta, 
                       double *v, double *x, double *mu, int *n){
     //solve(T-uI)x = v
     double *c_prime = malloc(*n * sizeof(double));
@@ -1912,6 +2039,7 @@ void thomas_algorithm(double *alpha, double *beta,
     }
 
     free(c_prime);
+    return 0;
 }
 
 //check randomness
@@ -2000,6 +2128,15 @@ int rayleighQuot(int *n, double *res, int *ia, int *ja,
     return 0;
 }
 
+int copy( int *n, double *rCGl, double *bCG){
+    for (int i = 0; i < *n; i++)
+    {
+        bCG[i] = rCGl[i];
+    }
+    
+    return 0;
+}
+
 int scalProd(int *n, double *v1, double *v2, double *res){
 
     *res = 0;
@@ -2060,11 +2197,11 @@ int computeMu(double *alpha, double *beta, int *n, double *mu) {
     double max_alpha = fabs(alpha[0]);
     double max_beta = fabs(beta[0]);
 
-    for (int i = 1; i < n; i++) {
+    for (int i = 1; i < *n; i++) {
         if (fabs(alpha[i]) > max_alpha) {
             max_alpha = fabs(alpha[i]);      //!!!!al bet not same size
         }
-        if (i < n - 1 && fabs(beta[i]) > max_beta) {
+        if (i < *n - 1 && fabs(beta[i]) > max_beta) {
             max_beta = fabs(beta[i]);
         }
     }

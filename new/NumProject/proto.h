@@ -19,7 +19,7 @@ extern globVal_s globVal;
 //changer type de retour
 
 // RESOL//
-
+int CGmethod(int iter);
 int mg_method(int iter);
 int mg_iter(int iter, int levelMax, int m, int mu1, int mu2, int *nl, int *ial,
              int *jal, double *al, double *rl, double *ul, double *dl, double *bl);
@@ -123,14 +123,15 @@ int allocProb(int m, int *n, int **ia, int **ja,
 
 //extreme ev 
 int computeExtremeEv(int *n, int lanczosIter, int *ia, int *ja, 
-                    double *a, double *lowest, double *largest);
+                    double *a, double *lowest, double *largest, int forward);
 //1000X1000 seul 50 iter suffisant !!mettre en param to see speed
 int lanczosAlgo(int iter, int *n, int *ia, int *ja, 
                  double *a, double **alpha, double **beta);
 int invIter(double *alpha, double *beta, double *v, 
-            int *n, double *mu, int max_iter, double tol)
-void thomas_algorithm(double *alpha, double *beta, 
-					  double *v, double *x, double mu, int *n);
+            int *n, double *mu, int max_iter, double tol);
+
+int thomas_algorithm(double *alpha, double *beta, 
+					  double *v, double *x, double *mu, int *n);
 //check randomness
 int initRandomV(double *v, int *n);
 int multCsrSubvector(int *n, int *ia, int *ja, 
@@ -144,4 +145,5 @@ int computeVectNorm2(int *n, double *norm, double *v);
 int normalize(int *n, double *v);
 int vectScalDivide(int *n, double *v, double *beta);
 int subVectProd(int *n, double *alpha, double *v2, double *v1);
+int computeMu(double *alpha, double *beta, int *n, double *mu);
 #endif

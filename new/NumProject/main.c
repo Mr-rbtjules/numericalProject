@@ -18,7 +18,7 @@ int main() {
     printf("h per unit %d\n", p);
 
     
-    mg_method(15);
+    CGmethod(1);
     
     freeGlobVal();
 
