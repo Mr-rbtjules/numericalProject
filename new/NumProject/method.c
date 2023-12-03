@@ -25,14 +25,14 @@
 #define DOMAIN8 "[0, 6] × [0, 10] [0, 4] × [3, 10]"
 #define DOMAIN DOMAIN5
 //discretisation 
-#define M 300
-#define LEVELMAX 5
-#define MU1 4
-#define MU2 4
+#define M 1000
+#define LEVELMAX 8
+#define MU1 10
+#define MU2 10
 #define MODE 1 //0umpf 1 sym 2jacobi 
 #define ITERCORE 20
 #define CYCLEW 0
-#define CYCLEF 1 //V par defaut
+#define CYCLEF 0 //V par defaut
 
 
 /*
@@ -69,7 +69,7 @@ cycle f  10 iter 5 4 4 20 1.3s
         4 
 */
 //print parameters
-#define EXPLICIT 1
+#define EXPLICIT 0
 #define LOAD 1
 #define CHRONO 1
 #define RELAX 0
@@ -106,10 +106,10 @@ int CGmethod(int iter){
 	double *dl = NULL;
 	
     //'b' conceptuel, cad b au niveau 0 mais ri au niveau inf
-	double *rCGl = NULL;  
+	double *bl = NULL;  
 
 	//we pass the adress for each level
-	allocGrids(&nl, &ial, &jal, &al, &rCGl, &dl, &rl, &ul);
+	allocGrids(&nl, &ial, &jal, &al, &bl, &dl, &rl, &ul);
     
 	//precomputation of all Ac and bc
 
@@ -122,58 +122,162 @@ int CGmethod(int iter){
             ial + globVal.vectStart[l] + l,
             jal + globVal.matStart[l], 
             al + globVal.matStart[l],
-            rCGl
+            bl
         );
 	}
 	
 	int startLevelTg = 0; 
 
-	//u0 = 0
+	//u0 = 0 
 	preInitialization(ul);
 
     //INIT CONJUGUATE GRADIANT PART
     double *uCG = malloc(*nl * sizeof(double));
+    double *rCG = malloc(*nl * sizeof(double));
     double *dCG = malloc(*nl * sizeof(double)); 
     double *AdCG = malloc(*nl * sizeof(double));
     double *bCG = malloc(*nl * sizeof(double));
-    double save_old = 1.0;
-    double save_new = 1.0; 
+    double save_old;
+    double save_new; 
     double alpha;
     double beta;
+    double dAd;
 
     
-    /*
-    ucg0 = 0
-    rcg0 = b
-    beta0 = 0
-    0first precond z0 = B-1rch0 => Au = b mg
-    dcg0 = z0 (copy)
-    save old, save new
-    boucle
-    Adcg = A*dcg
-    save = <rcg,z>
-    alpha0 = save/<dcg,Adcg>
-    ucg += al*dcg
-    r-= al*Adcg
-    */
     
-   //init CG
-   //uCG0=0
-    preInitialization(uCG);
-    //b computated in prob into rCG
-    copy( nl, rCGl, bCG);
-    computeRes(nl, ial, jal, al, uCG, bCG, rCGl);
-    beta = 0;
-    mg_iter( 1, LEVELMAX, globVal.m[0], 
-            MU1, MU2, nl, ial ,jal,al, rl,ul,dl,rCGl); // dans ul on a z
     if (LOAD){
 		printf("\n Load percentage : \n");
 	}
-	//start iterations of the multigrid cycle (tg_rec)
+	//start iterations of CG method
+    
+    
+    int iterPrecond = 3;
+    
+   //init CG
+   //uCG0=0
+    /*
+    preInitialization(uCG);
+    //b computated in prob into rCG
+    copy( nl, bl, bCG); //doit encore verser rcg dans bl
+    //rcg0 -> inutile car u0 = 0
+    computeRes(nl, ial, jal, al, uCG, bCG, rCG);
+    //beta0
+    beta = 0;
+    //B-1r0
+    copy( nl, rCG, bl);
+    precond( iterPrecond, LEVELMAX, globVal.m[0], 
+            MU1, MU2, nl, ial ,jal,al, rl,ul,dl,bl); 
+
+    copy(nl, ul, dCG);
+    //al0
+    double top;
+    scalProd(nl,rCG, ul,&top);
+    
+    multCsrVector( nl, ial, jal, al, AdCG, dCG);
+    scalProd(nl, dCG, AdCG, &dAd);
+    alpha = top/dAd;
+
+    //u = u+ alpha*d
+    addVectProd(nl, &alpha, uCG, dCG);
+        
+        //r = r - alpha*d
+    subVectProd(nl, &alpha, rCG, dCG);
+    for (int i = 1; i < iter; i++)
+    {
+        printf("iter %d\n", i);
+
+        double bot;
+        scalProd(nl, ul, rCG, &bot);
+        copy( nl, rCG, bl);
+        precond( iterPrecond, LEVELMAX, globVal.m[0], 
+            MU1, MU2, nl, ial ,jal,al, rl,ul,dl,bl);
+        double top;
+        scalProd(nl, ul, rCG, &top);
+        beta = top/bot;
+
+        dSum(nl, &beta, dCG, ul);
+
+        multCsrVector( nl, ial, jal, al, AdCG, dCG);
+        scalProd(nl, dCG, AdCG, &dAd);
+        alpha = top/dAd;
+
+        //u = u+ alpha*d
+        addVectProd(nl, &alpha, uCG, dCG);
+        
+        //r = r - alpha*d
+        subVectProd(nl, &alpha, rCG, dCG);
+
+        
+        
+    }
+    */
+    
+    //uCG0=0
+    copy(nl, bl, bCG); // comme ça on conserve b ds qq chose de fixe
+    preInitialization(uCG);
+    computeRes(nl, ial, jal, al, uCG, bCG, rCG);
+    //u0
+    copy(nl, rCG, bl);
+    mg_iter( iterPrecond, LEVELMAX, globVal.m[0], 
+            MU1, MU2, nl, ial ,jal,al, rl,ul,dl,bl); // dans ul on a z
+    //saveold - r0z0
+    //scalProd(nl, rCGl, ul, &save_old);
+    //d0 = u0
+    copy(nl, ul, dCG);
+
+    scalProd(nl, rCG, ul, &save_old);
+
+    if (LOAD){
+		printf("\n Load percentage : \n");
+	}
+	//start iterations of CG method
 	double t1 = mytimer();
     
+    double bot;
+    for (int i = 0; i < iter; i++)
+    {
+        //Ad = A*d
+        printf("iter %d\n", i);
+        multCsrVector( nl, ial, jal, al, AdCG, dCG); 
+
+        //save new = num alpha and denom beta+1
+        //rappel rcGl est le bl de mgmethod precond
+        //save new = <r , B-1 r>
+        
+
+        //alpham = savenew/ <d,Ad>
+        scalProd(nl, dCG, AdCG, &dAd);
+        alpha = save_old/dAd;
 
 
+        //u = u+ alpha*d
+        addVectProd(nl, &alpha, uCG, dCG);
+        
+        //r = r - alpha*d
+        subVectProd(nl, &alpha, rCG, AdCG);
+
+        copy(nl, rCG, bl);
+        mg_iter( iterPrecond, LEVELMAX, globVal.m[0], 
+            MU1, MU2, nl, ial ,jal,al, rl,ul,dl,bl); 
+        scalProd(nl, rCG, ul, &save_new);
+        //check conv
+
+        //betam+1 save new/saveold
+        beta = save_new/save_old; 
+
+        //ul+1 = B-1rm+1
+        //part de quel ul+1 ? tester les 2
+        //preInitialization(ul);
+        
+        
+        //dm+1 = ul+1 + beta*dm
+        dSum( nl, &beta, dCG, ul);
+
+
+        save_old = save_new;
+    }
+    
+    
 
 
 
@@ -185,12 +289,14 @@ int CGmethod(int iter){
     plotCycle();
 
     //top level so no shift
+    
     printf("\n final res : %lf\n", computeResNorm(
-            nl, ial, jal, al, bCG, ul, rl
-        ));
+            nl, ial, jal, al, bCG, uCG, rCG
+    ));
+    
 
     if (PLOT){
-        plot_res(rl + globVal.vectStart[startLevelTg], startLevelTg);
+        plot_res(rCG + globVal.vectStart[startLevelTg], startLevelTg);
     }
     
 
@@ -198,7 +304,7 @@ int CGmethod(int iter){
     free(ial);
     free(jal);
     free(al);
-    free(rCGl);
+    free(rCG);
     free(dl);
     free(ul);
     free(rl);
@@ -213,6 +319,18 @@ int CGmethod(int iter){
 }
 
 
+
+
+
+
+int precond(int iter, int levelMax, int m, int mu1, int mu2, int *nl, int *ial,
+             int *jal, double *al, double *rl, double *ul, double *dl, double *bl){
+    printf("precond\n");
+    mg_iter( iter, LEVELMAX, globVal.m[0], MU1, MU2, nl, ial ,jal,al, rl,ul,dl,bl);
+    //forwardGS( iter, nl, ial ,jal,al, bl,ul,rl,dl);
+    //backwardGS( iter, nl, ial ,jal,al, bl,ul,rl,dl);
+    return 0;
+}
 
 
 int mg_method(int iter){
@@ -252,6 +370,7 @@ int mg_method(int iter){
         );
 	}
 	
+    
 	int startLevelTg = 0; 
 
 	//u0 = 0
@@ -303,6 +422,7 @@ int mg_iter(int iter, int levelMax, int m, int mu1, int mu2, int *nl, int *ial,
 	for (int i = 0; i < iter; i++){
 		//initialisation ici ?
 		if (LOAD){
+            
 			printf("   %.3f   ", (double)(i+1)/iter);
         	fflush(stdout);
 			printf("\r");
@@ -1036,13 +1156,7 @@ int preInitialization(double *u0){
 	for (int i=0; i < globVal.vectStart[1]; i++){
 		u0[i] = 0; 
 	}
-	/*
-        if (EXPLICIT){
-		printf("\n initial res : %lf\n", computeResNorm(
-            *n0, ia0, ja0, a0, b, u0, r0
-        ));
-	}
-    */
+	
 	return 0;
 }
 
@@ -1482,6 +1596,51 @@ int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx){
 
 
  //TOOLS//
+
+
+int isSymmetric(int* ia, int* ja, double* a, int *n) {
+    for (int i = 0; i < *n; i++) {
+        for (int j = ia[i]; j < ia[i + 1]; j++) {
+            int col = ja[j];
+            int row = i;
+            double value = a[j];
+
+            // Find the corresponding element in the transpose
+            int found = 0;
+            for (int k = ia[col]; k < ia[col + 1]; k++) {
+                if (ja[k] == row) {
+                    if (fabs(a[k] - value) > 1e-10) {
+                        return 0; // Not symmetric
+                    }
+                    found = 1;
+                    break;
+                }
+            }
+            if (!found) {
+                return 0; // Corresponding element not found, not symmetric
+            }
+        }
+    }
+    return 1; // Matrix is symmetric
+}
+
+void printMatrix(int* ia, int* ja, double* a, int *n) {
+    for (int i = 0; i <= *n; i++) {
+        int rowStart = ia[i];
+        int rowEnd = ia[i + 1];
+        int jaIndex = rowStart;
+
+        for (int j = 0; j <= *n; j++) {
+            if (jaIndex < rowEnd && ja[jaIndex] == j) {
+                printf("%.2f\t", a[jaIndex]);
+                jaIndex++;
+            } else {
+                printf("0.00\t");
+            }
+        }
+        printf("\n");
+    }
+}
 
 int addVect(int *n , double *v1, double *v2){
 	for (int i = 0; i < *n; i++){
@@ -2090,7 +2249,7 @@ int multCsrSubvector(int *n, int *ia, int *ja, double *a,
 
 int multCsrVector(int *n, int *ia, int *ja, 
                  double *a, double *Ax, double *x){
-	//do v2 = A*v1 - beta*v0
+	//do v2 = A*v1 
 	
 	int i = 0;
 	int jai = 0;
@@ -2191,6 +2350,25 @@ int subVectProd(int *n, double *alpha, double *v2, double *v1){
         v2[i] -= (*alpha) * v1[i];
         i += 1;
     }
+}
+
+int addVectProd(int *n, double *alpha, double *v2, double *v1){
+
+    int i = 0;
+    while (i < *n){
+        v2[i] += (*alpha) * v1[i];
+        i += 1;
+    }
+}
+
+int dSum(int *n, double *beta, double *d, double *z){
+
+    int i = 0;
+    while (i < *n){
+        d[i] = z[i] + (*beta) * d[i];
+        i += 1;
+    }
+    return 0;
 }
 
 int computeMu(double *alpha, double *beta, int *n, double *mu) {

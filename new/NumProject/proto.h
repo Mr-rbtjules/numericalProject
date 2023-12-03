@@ -89,6 +89,8 @@ int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx);
 
 
 // TOOLS //
+int isSymmetric(int* ia, int* ja, double* a, int *n);
+void printMatrix(int* ia, int* ja, double* a, int *n);
 int addVect(int *n , double *v1, double *v2);
 
 
@@ -140,10 +142,21 @@ int multCsrVector(int *n, int *ia, int *ja,
                  double *a, double *Ax, double *x);
 int rayleighQuot(int *n, double *res, int *ia, int *ja, 
                  double *a, double *Ax, double *x);
+int copy( int *n, double *rCGl, double *bCG);
 int scalProd(int *n, double *v1, double *v2, double *res);
 int computeVectNorm2(int *n, double *norm, double *v);
 int normalize(int *n, double *v);
 int vectScalDivide(int *n, double *v, double *beta);
 int subVectProd(int *n, double *alpha, double *v2, double *v1);
+int addVectProd(int *n, double *alpha, double *v2, double *v1);
+int dSum(int *n, double *beta, double *d, double *z);
 int computeMu(double *alpha, double *beta, int *n, double *mu);
+
+
+
+void csrMatVecMult(int* ia, int* ja, double* a, double* x, double* result, int N);
+double dotProduct(double* vec1, double* vec2, int N);
+void vecAdd(double* vec1, double* vec2, double* result, double alpha, int N);
+void vecSub(double* vec1, double* vec2, double* result, double alpha, int N);
+void conjugateGradientCSR(int* ia, int* ja, double* a, double* b, double* x, int N);
 #endif
