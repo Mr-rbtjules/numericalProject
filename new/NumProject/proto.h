@@ -1,11 +1,43 @@
 #ifndef PROTO
 #define PROTO
 
+#define BOUND1(x, y) (exp(sqrt((x)*(x) + (y)*(y))))
+#define BOUND2(x, y) (sin(sqrt(pow(x,2) + pow(y,2))))
+#define BOUND0(x, y) (0)
+
+//program parameters
+//type of boundary conditions
+#define BOUND BOUND2
+//type of domain
+//si marche pas check indice restrict prolong
+#define DOMAIN1 "[0, 6] × [0, 10] [2, 4] × [2, 5]"
+#define DOMAIN2 "[0, 6] × [0, 10] [0, 2] × [3, 4]"
+#define DOMAIN3 "[0, 6] × [0, 10] [4, 6] × [3, 6]"
+#define DOMAIN4 "[0, 6] × [0, 10] [2, 3] × [5, 8]"
+#define DOMAIN5 "[0, 6] × [0, 10] [3, 4] × [0, 4]"
+#define DOMAIN6 "[0, 6] × [0, 10] [0, 4] × [0, 3]"
+#define DOMAIN7 "[0, 6] × [0, 10] [2, 4] × [5, 10]"
+#define DOMAIN8 "[0, 6] × [0, 10] [0, 4] × [3, 10]"
+#define DOMAIN DOMAIN2
+//discretisation 
+
+
+#define MODE 1 //0umpf 1 sym 2jacobi 
+#define ITERCORE 20
+#define CYCLEW 0
+#define CYCLEF 0
+
+#define EXPLICIT 0
+#define LOAD 1
+#define CHRONO 1
+#define RELAX 0
+#define PLOT 0
 
 
 typedef struct globVal_s globVal_s;
 struct globVal_s{
 
+	int levelMax;
 	int *m;
 	int *domain;
 	int *vectStart;
@@ -18,14 +50,17 @@ extern globVal_s globVal;
 
 //changer type de retour
 
+
+int CGmethod(int iter, int m, int levelMax, double *res);
+void conjugateGradientCSR(int iter, int* ia, int* ja, double* a, double* b, double* x, int N, double *res);
 // RESOL//
-int CGmethod(int iter);
-int mg_method(int iter);
-int mg_iter(int iter, int levelMax, int m, int mu1, int mu2, int *nl, int *ial,
-             int *jal, double *al, double *rl, double *ul, double *dl, double *bl);
+
+int mg_method(int m, int iter, int levelMax, int mu, int mode, int cycle, double *res);
+int mg_iter(int iter, int levelMax, int m, int mu1, int mu2, int cycle, int *nl, int *ial,
+             int *jal, double *al, double *rl, double *ul, double *dl, double *bl, double *res);
 
 int tg_rec(int level, int m, int mu1,
-			int mu2, int *nl, int *ial, int *jal,
+			int mu2, int cycle, int *nl, int *ial, int *jal,
 		   double *al, double *bl, double *ul, double *rl, double *dl);
 void FCycleLoop(int level, int m, int mu1,
 			int mu2, int *nl, int *ial, int *jal,
@@ -54,9 +89,8 @@ int symGS(int iter, double tol, int *n, int *ia, int *ja, double *a,
 			    double *b, double *u, double *r, double *d);
 int restrictR(int level, double *rp, double *rc);
 int addProlCorrection(int level, double *up, double *uc);
-int preInitialization(double *u0);
-int reInitialization(double *ul);
-int allocGrids(int **nl, int **ial,
+
+int allocGrids(int levelMax, int **nl, int **ial,
                int **jal, double **al, double **bl,
 			   double **dl, double **rl, double **ul);
 // PROB //
@@ -90,7 +124,6 @@ int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx);
 
 // TOOLS //
 int isSymmetric(int* ia, int* ja, double* a, int *n);
-void printMatrix(int* ia, int* ja, double* a, int *n);
 int addVect(int *n , double *v1, double *v2);
 
 
@@ -99,17 +132,33 @@ double computeResNorm(int *n, int *ia, int *ja, double *a,
                              double *b,double *u, double *r);
 int computeRes(int *n, int *ia, int *ja, double *a,
                     double *u, double *b, double *r);
-void printVect(void *vect, int size, int type);
+int copy( int *n, double *toCopy, double *copy);
+int scalProd(int *n, double *v1, double *v2, double *res);
+int subVectProd(int *n, double *alpha, double *v2, double *v1);
+int addVectProd(int *n, double *alpha, double *v2, double *v1);
+int dSum(int *n, double *beta, double *d, double *z);
+int multCsrVector(int *n, int *ia, int *ja, 
+                 double *a, double *Ax, double *x);
+int preInitialization(double *u0);
+int reInitialization(double *ul);
+
+//PLOT//
+void plotCycle(int levelMax, int cycle);
+void simillar(int levelMax, int cycle, int level, char **fig, int *step);
+void FPart(int levelMax, int level, char **fig, int *step);
+void plotUp(int level, char **fig, int *step);
+void plotDown(int level, char **fig, int *step);
 void plot_res(double *r, int level);
-void simillar(int level, char **fig, int *step);
-void plotCycle();
+void printVect(void *vect, int size, int type);
+void printMatrix(int* ia, int* ja, double* a, int *n);
+int plotIter(double *res, int iter, int m);
 
 // Global variable //
-void initGlobVal();
+void initGlobVal(int m, int levelMax);
 void extractDomain(const char* str_domain, int* count, int **domain);
 int correctM(int *domain, int m);
-int initMlevels(int m, int **mLevels);
-int initIndex( int **vectStart, int **matStart);
+int initMlevels(int m, int **mLevels, int levelMax);
+int initIndex( int levelMax, int **vectStart, int **matStart);
 void freeGlobVal();
 
 
@@ -138,18 +187,15 @@ int thomas_algorithm(double *alpha, double *beta,
 int initRandomV(double *v, int *n);
 int multCsrSubvector(int *n, int *ia, int *ja, 
                  double *a, double *v2, double *v1, double *v0, double *beta);
-int multCsrVector(int *n, int *ia, int *ja, 
-                 double *a, double *Ax, double *x);
+
 int rayleighQuot(int *n, double *res, int *ia, int *ja, 
                  double *a, double *Ax, double *x);
-int copy( int *n, double *rCGl, double *bCG);
-int scalProd(int *n, double *v1, double *v2, double *res);
+
+
 int computeVectNorm2(int *n, double *norm, double *v);
 int normalize(int *n, double *v);
 int vectScalDivide(int *n, double *v, double *beta);
-int subVectProd(int *n, double *alpha, double *v2, double *v1);
-int addVectProd(int *n, double *alpha, double *v2, double *v1);
-int dSum(int *n, double *beta, double *d, double *z);
+
 int computeMu(double *alpha, double *beta, int *n, double *mu);
 
 
@@ -158,5 +204,4 @@ void csrMatVecMult(int* ia, int* ja, double* a, double* x, double* result, int N
 double dotProduct(double* vec1, double* vec2, int N);
 void vecAdd(double* vec1, double* vec2, double* result, double alpha, int N);
 void vecSub(double* vec1, double* vec2, double* result, double alpha, int N);
-void conjugateGradientCSR(int* ia, int* ja, double* a, double* b, double* x, int N);
 #endif

@@ -6,33 +6,7 @@
 
 #include "proto.h"
 
-#define BOUND1(x, y) (exp(sqrt((x)*(x) + (y)*(y))))
-#define BOUND2(x, y) (sin(sqrt((x)*(x) + (y)*(y))))
-#define BOUND0(x, y) (0)
-
-//program parameters
-//type of boundary conditions
-#define BOUND BOUND2
-//type of domain
-//si marche pas check indice restrict prolong
-#define DOMAIN1 "[0, 6] × [0, 10] [2, 4] × [2, 5]"
-#define DOMAIN2 "[0, 6] × [0, 10] [0, 2] × [3, 4]"
-#define DOMAIN3 "[0, 6] × [0, 10] [4, 6] × [3, 6]"
-#define DOMAIN4 "[0, 6] × [0, 10] [2, 3] × [5, 8]"
-#define DOMAIN5 "[0, 6] × [0, 10] [3, 4] × [0, 4]"
-#define DOMAIN6 "[0, 6] × [0, 10] [0, 4] × [0, 3]"
-#define DOMAIN7 "[0, 6] × [0, 10] [2, 4] × [5, 10]"
-#define DOMAIN8 "[0, 6] × [0, 10] [0, 4] × [3, 10]"
-#define DOMAIN DOMAIN5
-//discretisation 
-#define M 1000
-#define LEVELMAX 8
-#define MU1 10
-#define MU2 10
-#define MODE 1 //0umpf 1 sym 2jacobi 
-#define ITERCORE 20
-#define CYCLEW 0
-#define CYCLEF 0 //V par defaut
+ //V par defaut
 
 
 /*
@@ -59,7 +33,7 @@ cycle f  10 iter 5 4 4 20 1.3s
    \/4 = level max = nb de fois qu'on restr
 
 0               0
- \             /
+ \             / 
   1           1
    \         /
     2       2
@@ -69,14 +43,9 @@ cycle f  10 iter 5 4 4 20 1.3s
         4 
 */
 //print parameters
-#define EXPLICIT 0
-#define LOAD 1
-#define CHRONO 1
-#define RELAX 0
-#define PLOT 1
 
 //start global variable (m and domain)
-globVal_s globVal = { NULL, NULL, NULL, NULL}; 
+globVal_s globVal = { 0, NULL, NULL, NULL, NULL}; 
 
 
 
@@ -89,9 +58,10 @@ pour avoir mm ordre ia ja u r, etc
 
 /// RESOL ///
 
-int CGmethod(int iter){
-    //INIT PRECONDITION PART
-    
+
+int mg_method(int m, int iter, int levelMax, int mu, int mode, int cycle, double *res){
+	
+	initGlobVal(m, levelMax);
 	//initit memory and pointers
 	//compute all the coarse matrix and nl
     int *nl = NULL;
@@ -109,262 +79,18 @@ int CGmethod(int iter){
 	double *bl = NULL;  
 
 	//we pass the adress for each level
-	allocGrids(&nl, &ial, &jal, &al, &bl, &dl, &rl, &ul);
+	allocGrids(levelMax, &nl, &ial, &jal, &al, &bl, &dl, &rl, &ul);
     
 	//precomputation of all Ac and bc
 
-	for (int l = 0; l <= LEVELMAX; l++){
+	for (int l = 0; l <= levelMax; l++){
 		//adresses of each vector is simply the pointer shifted
         // bl not shifted because only the firs
 		probMg(
             globVal.m[l], 
             nl + l, 
             ial + globVal.vectStart[l] + l,
-            jal + globVal.matStart[l], 
-            al + globVal.matStart[l],
-            bl
-        );
-	}
-	
-	int startLevelTg = 0; 
-
-	//u0 = 0 
-	preInitialization(ul);
-
-    //INIT CONJUGUATE GRADIANT PART
-    double *uCG = malloc(*nl * sizeof(double));
-    double *rCG = malloc(*nl * sizeof(double));
-    double *dCG = malloc(*nl * sizeof(double)); 
-    double *AdCG = malloc(*nl * sizeof(double));
-    double *bCG = malloc(*nl * sizeof(double));
-    double save_old;
-    double save_new; 
-    double alpha;
-    double beta;
-    double dAd;
-
-    
-    
-    if (LOAD){
-		printf("\n Load percentage : \n");
-	}
-	//start iterations of CG method
-    
-    
-    int iterPrecond = 3;
-    
-   //init CG
-   //uCG0=0
-    /*
-    preInitialization(uCG);
-    //b computated in prob into rCG
-    copy( nl, bl, bCG); //doit encore verser rcg dans bl
-    //rcg0 -> inutile car u0 = 0
-    computeRes(nl, ial, jal, al, uCG, bCG, rCG);
-    //beta0
-    beta = 0;
-    //B-1r0
-    copy( nl, rCG, bl);
-    precond( iterPrecond, LEVELMAX, globVal.m[0], 
-            MU1, MU2, nl, ial ,jal,al, rl,ul,dl,bl); 
-
-    copy(nl, ul, dCG);
-    //al0
-    double top;
-    scalProd(nl,rCG, ul,&top);
-    
-    multCsrVector( nl, ial, jal, al, AdCG, dCG);
-    scalProd(nl, dCG, AdCG, &dAd);
-    alpha = top/dAd;
-
-    //u = u+ alpha*d
-    addVectProd(nl, &alpha, uCG, dCG);
-        
-        //r = r - alpha*d
-    subVectProd(nl, &alpha, rCG, dCG);
-    for (int i = 1; i < iter; i++)
-    {
-        printf("iter %d\n", i);
-
-        double bot;
-        scalProd(nl, ul, rCG, &bot);
-        copy( nl, rCG, bl);
-        precond( iterPrecond, LEVELMAX, globVal.m[0], 
-            MU1, MU2, nl, ial ,jal,al, rl,ul,dl,bl);
-        double top;
-        scalProd(nl, ul, rCG, &top);
-        beta = top/bot;
-
-        dSum(nl, &beta, dCG, ul);
-
-        multCsrVector( nl, ial, jal, al, AdCG, dCG);
-        scalProd(nl, dCG, AdCG, &dAd);
-        alpha = top/dAd;
-
-        //u = u+ alpha*d
-        addVectProd(nl, &alpha, uCG, dCG);
-        
-        //r = r - alpha*d
-        subVectProd(nl, &alpha, rCG, dCG);
-
-        
-        
-    }
-    */
-    
-    //uCG0=0
-    copy(nl, bl, bCG); // comme ça on conserve b ds qq chose de fixe
-    preInitialization(uCG);
-    computeRes(nl, ial, jal, al, uCG, bCG, rCG);
-    //u0
-    copy(nl, rCG, bl);
-    mg_iter( iterPrecond, LEVELMAX, globVal.m[0], 
-            MU1, MU2, nl, ial ,jal,al, rl,ul,dl,bl); // dans ul on a z
-    //saveold - r0z0
-    //scalProd(nl, rCGl, ul, &save_old);
-    //d0 = u0
-    copy(nl, ul, dCG);
-
-    scalProd(nl, rCG, ul, &save_old);
-
-    if (LOAD){
-		printf("\n Load percentage : \n");
-	}
-	//start iterations of CG method
-	double t1 = mytimer();
-    
-    double bot;
-    for (int i = 0; i < iter; i++)
-    {
-        //Ad = A*d
-        printf("iter %d\n", i);
-        multCsrVector( nl, ial, jal, al, AdCG, dCG); 
-
-        //save new = num alpha and denom beta+1
-        //rappel rcGl est le bl de mgmethod precond
-        //save new = <r , B-1 r>
-        
-
-        //alpham = savenew/ <d,Ad>
-        scalProd(nl, dCG, AdCG, &dAd);
-        alpha = save_old/dAd;
-
-
-        //u = u+ alpha*d
-        addVectProd(nl, &alpha, uCG, dCG);
-        
-        //r = r - alpha*d
-        subVectProd(nl, &alpha, rCG, AdCG);
-
-        copy(nl, rCG, bl);
-        mg_iter( iterPrecond, LEVELMAX, globVal.m[0], 
-            MU1, MU2, nl, ial ,jal,al, rl,ul,dl,bl); 
-        scalProd(nl, rCG, ul, &save_new);
-        //check conv
-
-        //betam+1 save new/saveold
-        beta = save_new/save_old; 
-
-        //ul+1 = B-1rm+1
-        //part de quel ul+1 ? tester les 2
-        //preInitialization(ul);
-        
-        
-        //dm+1 = ul+1 + beta*dm
-        dSum( nl, &beta, dCG, ul);
-
-
-        save_old = save_new;
-    }
-    
-    
-
-
-
-    double t2 = mytimer();
-    if (CHRONO){
-        printf("\nTemps de solution multigrid method (CPU): %5.1f sec\n",t2-t1);   
-    }
-
-    plotCycle();
-
-    //top level so no shift
-    
-    printf("\n final res : %lf\n", computeResNorm(
-            nl, ial, jal, al, bCG, uCG, rCG
-    ));
-    
-
-    if (PLOT){
-        plot_res(rCG + globVal.vectStart[startLevelTg], startLevelTg);
-    }
-    
-
-    free(nl);
-    free(ial);
-    free(jal);
-    free(al);
-    free(rCG);
-    free(dl);
-    free(ul);
-    free(rl);
-
-    free(uCG);
-    free(bCG);
-    free(dCG);
-    free(AdCG);
-
-
-	return 0;
-}
-
-
-
-
-
-
-int precond(int iter, int levelMax, int m, int mu1, int mu2, int *nl, int *ial,
-             int *jal, double *al, double *rl, double *ul, double *dl, double *bl){
-    printf("precond\n");
-    mg_iter( iter, LEVELMAX, globVal.m[0], MU1, MU2, nl, ial ,jal,al, rl,ul,dl,bl);
-    //forwardGS( iter, nl, ial ,jal,al, bl,ul,rl,dl);
-    //backwardGS( iter, nl, ial ,jal,al, bl,ul,rl,dl);
-    return 0;
-}
-
-
-int mg_method(int iter){
-	
-	
-	//initit memory and pointers
-	//compute all the coarse matrix and nl
-    int *nl = NULL;
-
-    //liste : chaque elem pointe vers 1 matrice 
-    //d'un certain level (ici matrice == liste)
-	int *ial = NULL; 
-	int *jal = NULL;
-	double *al = NULL;                                                         
-	double *rl = NULL;
-	double *ul = NULL;
-	double *dl = NULL;
-	
-    //'b' conceptuel, cad b au niveau 0 mais ri au niveau inf
-	double *bl = NULL;  
-
-	//we pass the adress for each level
-	allocGrids(&nl, &ial, &jal, &al, &bl, &dl, &rl, &ul);
-    
-	//precomputation of all Ac and bc
-
-	for (int l = 0; l <= LEVELMAX; l++){
-		//adresses of each vector is simply the pointer shifted
-        // bl not shifted because only the firs
-		probMg(
-            globVal.m[l], 
-            nl + l, 
-            ial + globVal.vectStart[l] + l,
-            jal + globVal.matStart[l], 
+            jal + globVal.matStart[l],
             al + globVal.matStart[l],
             bl
         );
@@ -380,9 +106,11 @@ int mg_method(int iter){
 	}
 	//start iterations of the multigrid cycle (tg_rec)
 	double t1 = mytimer();
+
+    
     if( mg_iter(
-            iter, LEVELMAX, globVal.m[0], 
-            MU1, MU2, nl, ial ,jal,al,rl,ul,dl,bl)){
+            iter, levelMax, globVal.m[0], 
+            mu, mu, cycle, nl, ial ,jal,al,rl,ul,dl,bl, res)){
         return 1;
     }
     double t2 = mytimer();
@@ -390,65 +118,69 @@ int mg_method(int iter){
         printf("\nTemps de solution multigrid method (CPU): %5.1f sec\n",t2-t1);   
     }
 
-    plotCycle();
+    
 
     //top level so no shift
-    printf("\n final res : %lf\n", computeResNorm(
+    double resi = computeResNorm(
             nl, ial, jal, al, bl, ul, rl
-        ));
+        );
+    printf("\n final res : %.16f\n", resi);
 
     if (PLOT){
+        plotCycle(levelMax, cycle);
         plot_res(rl + globVal.vectStart[startLevelTg], startLevelTg);
     }
     
 
-    free(nl);
-    free(ial);
-    free(jal);
-    free(al);
-    free(bl);
-    free(dl);
-    free(ul);
-    free(rl);
+    free(nl), free(ial), free(jal), free(al);
+    free(bl), free(dl), free(ul) , free(rl);
+    freeGlobVal();
 
-	return 0;
+    return 0;
 }
 
 
-int mg_iter(int iter, int levelMax, int m, int mu1, int mu2, int *nl, int *ial,
-             int *jal, double *al, double *rl, double *ul, double *dl, double *bl){
-	
+int mg_iter(int iter, int levelMax, int m, int mu1, int mu2, int cycle, int *nl, int *ial,
+             int *jal, double *al, double *rl, double *ul, double *dl, double *bl, double *res){
+	double *nres = malloc(*nl * sizeof(double));
 	int startLevelTg = 0;
 	for (int i = 0; i < iter; i++){
 		//initialisation ici ?
-		if (LOAD){
+		if (LOAD && res != NULL){
             
 			printf("   %.3f   ", (double)(i+1)/iter);
         	fflush(stdout);
 			printf("\r");
-		}
+		}   
         //ci = 0 pr tt i != top level
         //ligne tres opti !
         reInitialization(ul);
-
-		tg_rec( startLevelTg, m, mu1, mu2, 
+        //solve_umfpack(*nl, ial, jal, al, bl, ul);
+		tg_rec( startLevelTg, m, mu1, mu2, cycle, 
 				nl, ial, jal, al, bl, ul, rl, dl);
-		
+		if (res != NULL){
+            
+            res[i] = computeResNorm(
+              nl, ial, jal, al, bl, ul, nres
+            );
+            
+        }
 		//print(res et u) + save
 	}
+    free(nres);
 	return 0;
 }
 
 //on considere qu'on donne quoi a tg rec ?
 // -> pointer sur la liste glob et on s'occupe des details inside
-int tg_rec(int level, int m, int mu1,
-			int mu2, int *nl, int *ial, int *jal,
+int tg_rec(int level, int m, int mu1, int mu2, 
+		   int cycle, int *nl, int *ial, int *jal,
 		   double *al, double *bl, double *ul, double *rl, double *dl){
 		
 		//des le level 1 on stock pas u2 mais c2 puis 'deviennent des u lorsqu'on ajoute la correction en remontant
 		//pblm tt en haut smoothing Au=b mais en dessous sm Ac = r pareil computeres
 	
-	if (level < LEVELMAX){
+	if (level < globVal.levelMax){
 
         //mettre dans une fonction car si level = 0 applique syst Au=b et r = b-Au
         //sinon Ac = r 
@@ -469,11 +201,11 @@ int tg_rec(int level, int m, int mu1,
 				nl, ial, jal, al, bl, ul, rl, dl);
 		
 		//au dessus s'effecctue du haut du v vers le bas
-		tg_rec(level+1, m, mu1, mu2,
+		tg_rec(level+1, m, mu1, mu2, cycle,
 		       nl, ial, jal, al, bl, ul, rl, dl);
         
-        if (CYCLEW){
-            tg_rec(level+1, m, mu1, mu2,
+        if (cycle == 1){
+            tg_rec(level+1, m, mu1, mu2, cycle,
 		       nl, ial, jal, al, bl, ul, rl, dl);
         }
         
@@ -495,7 +227,7 @@ int tg_rec(int level, int m, int mu1,
         }
 
         if (level > 0){
-            if (CYCLEF){
+            if (cycle == -1){
                 FCycleLoop(level, m, mu1, mu2,
 		       nl, ial, jal, al, bl, ul, rl, dl);
             }
@@ -529,7 +261,7 @@ void FCycleLoop(int level, int m, int mu1,
 		   double *al, double *bl, double *ul, double *rl, double *dl){
 
     int initLevel = level;
-    while (level < LEVELMAX){
+    while (level < globVal.levelMax){
         getDown( level, m, mu1, mu2, 
 				nl, ial, jal, al, bl, ul, rl, dl);
         level += 1;
@@ -706,6 +438,11 @@ int restrictR(int level, double *rp, double *rc){
     int nc_save = nc;
 	nc = 0;
 
+
+    
+
+    int test = 1;
+
 	int ind;
 	for (int iyp = 0; iyp < nyp; iyp++){
         //passage colonne suiv
@@ -716,6 +453,7 @@ int restrictR(int level, double *rp, double *rc){
                 
                 //garde que ligne ind impair  & col impair 
                 if (iyp % 2 == 1 && ixp % 2 == 1){  
+                    double nb_voisins = 0;
                     rc[nc] = 0;
                     //marquer le début de la ligne suivante dans le tableau 'ia'            
                     //replissage de la ligne : voisin sud //ui-1
@@ -723,10 +461,14 @@ int restrictR(int level, double *rp, double *rc){
                     
                     if (check_sud(ixp,iyp,y0p,y1p,x0p,x1p,nyp) ){
                         ind = indice(ixp,iyp-1,y0p,y1p,x0p,x1p, nxp);
-                        rc[nc] += 0.25 * rp[ind] * SCALE_FACT;
+                        rc[nc] += rp[ind];
+                        nb_voisins += 1;
                     }    
 
                     else{
+                        if (!test){
+                            nb_voisins += 1;
+                        }
                         //residus sur bord censé etre 0 ?
                         //(*rc)[*nc] += 0.25 * rp[np] * SCALE_FACT; 
                         //rc[*nc] += 0.25 * computeBound((ixp+1)*hp,(iyp+1 -1)*hp) * SCALE_FACT;//si fct qui calcule chaque fois :juste coord sinon
@@ -736,15 +478,20 @@ int restrictR(int level, double *rp, double *rc){
                     //si pas a droite d'un bord
                     if (check_west(ixp,iyp,y0p,y1p,x0p,x1p,nxp)){
                         ind = np -1;
-                        rc[nc] += 0.25 * rp[ind] * SCALE_FACT;
+                        rc[nc] += rp[ind];
+                        nb_voisins += 1;
                     }
                     else{
+                        if (!test){
+                            nb_voisins += 1;
+                        }
                         //(*rc)[*nc] += 0.25 * rp[np] * SCALE_FACT;
                         //rc[*nc] += 0.25 * computeBound((ixp+1-1)*hp,(iyp+1)*hp) * SCALE_FACT;
                     }
 
-                    ind = np;
-                    rc[nc] += rp[ind] * SCALE_FACT;
+                    
+                    
+                    
                    
                     // replissage de la ligne : élém. diagonal
                     
@@ -753,10 +500,13 @@ int restrictR(int level, double *rp, double *rc){
                     //si pas a gauche d'un bord
                     if (check_est(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){
                         ind = np +1;
-                        rc[nc] += 0.25 * rp[ind] * SCALE_FACT;
-                         
+                        rc[nc] += rp[ind];
+                        nb_voisins += 1;
                     }
                     else{
+                        if (!test){
+                            nb_voisins += 1;
+                        }
                         //(*rc)[*nc] += 0.25 * rp[np] * SCALE_FACT;
                         //rc[*nc] += 0.25 * computeBound((ixp+1+1)*hp ,(iyp+1)*hp) * SCALE_FACT;
                         
@@ -766,12 +516,21 @@ int restrictR(int level, double *rp, double *rc){
                     //si pas en dessous d'un bord
                     if ( check_nord(ixp,iyp,y0p,y1p,x0p,x1p,nyp) ){
 						ind = indice(ixp,iyp+1,y0p,y1p,x0p,x1p, nxp);
-                        rc[nc] += 0.25 * rp[ind] * SCALE_FACT;
+                        rc[nc] += rp[ind];
+                        nb_voisins += 1;
                     }
+
                     else{
+                        if (!test){
+                            nb_voisins += 1;
+                        }
                         //(*rc)[*nc] += 0.25 * rp[np] * SCALE_FACT;
                         //rc[*nc] += 0.25 * computeBound((ixp+1)*hp, (iyp+1+1)*hp) * SCALE_FACT;
                     }
+                    rc[nc] /= nb_voisins;
+                    rc[nc] += rp[np];
+                    rc[nc] *= SCALE_FACT;
+
                     // numéro de l'équation
                     nc += 1;
                 }
@@ -832,6 +591,11 @@ int addProlCorrection(int level, double *up, double *uc){
 	np = 0;
 
 	int ind;
+
+    int test = 0;
+    double nb;
+    double corr;
+
 	for (int iyp = 0; iyp < nyp; iyp++){
         //passage colonne suiv
         for (int ixp = 0; ixp < nxp; ixp++){      
@@ -844,6 +608,9 @@ int addProlCorrection(int level, double *up, double *uc){
 				//impair impair -> 1/4 somme des 4 autour
                 
                 if (iyp % 2 == 0 && ixp % 2 == 0){ 
+                    nb = 0;
+                    corr = 0;
+
                     //check si bord est bien la ou pense etre pour uc (pas faire une recherche alors que bord)
                     //somme coin gauche bas 
                     //check si point prol pas ds le trou
@@ -852,7 +619,8 @@ int addProlCorrection(int level, double *up, double *uc){
                         
 						ind = indice((ixp/2)-1,(iyp/2)-1, 
 									 y0c,y1c,x0c,x1c, nxc);//juste /2 -1 car point prol au milieu des 4 tjrs pair
-                        up[np] += 0.25 * uc[ind]; 
+                        corr += uc[ind]; 
+                        nb +=1;
                     }
                     //on met qqchose ici ?
                     /*else{
@@ -865,8 +633,8 @@ int addProlCorrection(int level, double *up, double *uc){
                     if (check_se(ixp,iyp,y0p,y1p,x0p,x1p,nxp,nyp)){ //cond droit
                         ind = indice((ixp/2) ,(iyp/2) - 1, 
 									 y0c,y1c,x0c,x1c, nxc);
-                        up[np] += 0.25 * uc[ind];
-                        
+                        corr += uc[ind];
+                        nb +=1;
                     }
                    /* else{
                         up[*np] += 0.25 * computeBound((ixp+1+1)*hp,(iyp+1-1)*hp);
@@ -875,7 +643,8 @@ int addProlCorrection(int level, double *up, double *uc){
                     if (check_nw(ixp,iyp,y0p,y1p,x0p,x1p,nxp, nyp) ){ //cond gauche haut
                         ind = indice((ixp/2 - 1),(iyp/2), 
 									 y0c,y1c,x0c,x1c, nxc);
-                        up[np] += 0.25 * uc[ind];
+                        corr += uc[ind];
+                        nb +=1;
                     }
                     /*else{
                         double bound = computeBound((ixp+1-1)*hp,(iyp + 1+1)*hp);
@@ -886,9 +655,10 @@ int addProlCorrection(int level, double *up, double *uc){
                     
                     if (check_ne(ixp,iyp,y0p,y1p,x0p,x1p,nxp, nyp) ){ //coin droit
                         ind = indice((ixp/2),(iyp/2), y0c,y1c,x0c,x1c, nxc);
-                        up[np] += 0.25 * uc[ind];
-
+                        corr += uc[ind];
+                        nb +=1;
                     }
+                    up[np] += corr/nb;
                     /*else{
                         up[*np] += 0.25 * computeBound((ixp+1+1)*hp,(iyp+1+1)*hp);
                     }*/
@@ -896,13 +666,15 @@ int addProlCorrection(int level, double *up, double *uc){
 
 				//impair pair => somme haut + bas
 				else if (iyp % 2 == 0 && ixp % 2 == 1){
-                    
+                    nb = 0;
+                    corr = 0;
                     //somme bas
                     if (check_sud(ixp,iyp,y0p,y1p,x0p,x1p,nyp) ){
                        
                         ind = indice((ixp/2),(iyp/2)-1,
 									 y0c,y1c,x0c,x1c, nxc);
-                        up[np] += 0.5 * uc[ind];
+                        corr += uc[ind];
+                        nb +=1;
                     }
                     /*else{
                         up[*np] += 0.5 * computeBound((ixp+1)*hp,(iyp+1-1)*hp);
@@ -910,19 +682,24 @@ int addProlCorrection(int level, double *up, double *uc){
                     //somme haut
                     if(check_nord(ixp,iyp,y0p,y1p,x0p,x1p,nyp)){
                         ind = indice((ixp/2),(iyp/2), y0c,y1c,x0c,x1c, nxc);
-                        up[np] += 0.5 * uc[ind]; //pas de nx/2+1 car point uc[nc] deja ligne du haut
+                        corr += uc[ind]; //pas de nx/2+1 car point uc[nc] deja ligne du haut
+                        nb +=1 ;
                     }
+
+                    up[np] += corr/nb;
                     /*else{
                         up[*np] += 0.5 * computeBound((ixp+1)*hp,(iyp+1+1)*hp);
                     }*/
                 }
                 //pair impair 1/2 somme gauche droite
                 else if (iyp % 2 == 1 && ixp % 2 == 0){
-
+                    nb = 0;
+                    corr = 0;
                     //somme gauche
                     //si pas a droite d'un bord
                     if (check_west(ixp,iyp,y0p,y1p,x0p,x1p,nxp)){
-                        up[np] += 0.5 * uc[nc - 1];
+                        corr += uc[nc - 1];
+                        nb +=1;
                     }
                     /*else{
                         up[*np] += 0.5 * computeBound((ixp+1-1)*hp,(iyp+1)*hp);
@@ -931,8 +708,10 @@ int addProlCorrection(int level, double *up, double *uc){
                     //somme droit
                     //si pas a gauche d'un bord
                     if (check_est(ixp,iyp,y0p,y1p,x0p,x1p,nxp) ){
-                        up[np] += 0.5 * uc[nc]; //nc car deja +1 car type point precedent + 1
+                        corr += uc[nc]; //nc car deja +1 car type point precedent + 1
+                        nb +=1;
                     }
+                    up[np] += corr/nb;
                     /*else{
                         up[*np] += 0.5 * computeBound((ixp+1+1)*hp,(iyp+1)*hp);
                     }*/  
@@ -1145,51 +924,29 @@ int symGS(int iter, double tol, int *n, int *ia, int *ja, double *a,
 }
 
 
-int preInitialization(double *u0){
-    //at the begining of mg method u0 must be set at 0
-    //at lower level (ci), initialisation at 0 will be done 
-    // at the begining of EACH iteration
-    //for the record we valid that only u need to be initialized
-    //other will be set (r[i] = b[i] in computeres
-    //and in gaussres d is x and x[i] = b[i]) 
-	//arbitrary u0
-	for (int i=0; i < globVal.vectStart[1]; i++){
-		u0[i] = 0; 
-	}
-	
-	return 0;
-}
 
-//opti while ? rec ?
-int reInitialization(double *ul){
-    //ci are all set to 0 (ci are ul except top level)
-    for (int i = globVal.vectStart[1]; i < globVal.vectStart[LEVELMAX+1]; i++){
-		ul[i] = 0; 
-	}
-    return 0;
-}
 
-int allocGrids(int **nl, int **ial,
+int allocGrids(int levelMax, int **nl, int **ial,
                int **jal, double **al, double **bl,
 			   double **dl, double **rl, double **ul){ 
-    *nl = (int*)malloc((LEVELMAX +1)*sizeof(int));
+    *nl = (int*)malloc((levelMax +1)*sizeof(int));
     // pour taille de ia : c'est le nb de n total
     // (dernier de la list vectStart mais pour chaque level on a 1 eleme
     // de plus que n, nb de niveaux = levelmAX +1
     *ial = (int*)malloc(
-        (globVal.vectStart[LEVELMAX+1] + (LEVELMAX+1)) * sizeof(int)
+        (globVal.vectStart[levelMax+1] + (levelMax+1)) * sizeof(int)
     ); 
     //levelmax = indice du debut du dernier niveau donc +1 p
     // our avoir le nb tot d'elem matriciel
-	*jal = (int*)malloc(globVal.matStart[LEVELMAX+1] * sizeof(int));
-	*al = (double*)malloc(globVal.matStart[LEVELMAX+1] * sizeof(double));
+	*jal = (int*)malloc(globVal.matStart[levelMax+1] * sizeof(int));
+	*al = (double*)malloc(globVal.matStart[levelMax+1] * sizeof(double));
     //elem vectoriel
-	*rl = (double*)malloc(globVal.vectStart[LEVELMAX+1] * sizeof(double));
-	*dl = (double*)malloc(globVal.vectStart[LEVELMAX+1] * sizeof(double));
-	*ul = (double*)malloc(globVal.vectStart[LEVELMAX+1] * sizeof(double));
+	*rl = (double*)malloc(globVal.vectStart[levelMax+1] * sizeof(double));
+	*dl = (double*)malloc(globVal.vectStart[levelMax+1] * sizeof(double));
+	*ul = (double*)malloc(globVal.vectStart[levelMax+1] * sizeof(double));
     //on a besoin que de b au debut voir multigrid algo description
     //2eme elem de vectstart = n pour le top level
-	*bl = (double*)malloc(globVal.vectStart[LEVELMAX+1] * sizeof(double));
+	*bl = (double*)malloc(globVal.vectStart[levelMax+1] * sizeof(double));
 
 
     if (*nl == NULL || *bl == NULL || *ial == NULL || *jal == NULL || 
@@ -1198,781 +955,11 @@ int allocGrids(int **nl, int **ial,
         return 1;
     }
     if (EXPLICIT){
-        printf("\nMemory allocated for level 0 to level %d\n", LEVELMAX);
+        printf("\nMemory allocated for level 0 to level %d\n", levelMax);
     }
 	
 	return 0;
 }
-
-
-/// PROB ///
-
-int probMg(int m, int *n, 
-		   int *ia, int *ja, double *a, double *b){
-    
-    //fait pour m/2
-    //mémoire deja allouée
-    double h, invh2;
-    int x0,x1,y0,y1, nx, ny, nnz;
-
-    computeParamLevel(m, &h,&invh2,&x0,&x1, &y0, &y1, &nx, &ny, n, &nnz);
-    if (EXPLICIT){
-
-    	printf("\n ProbMg h = %lf ", h);
-    	printf("n = %d nnz = %d nx = %d ny= %d \n", *n, nnz, nx, ny);
-    	printf("x0 = %d x1 = %d y0 = %d y1 = %d \n", x0, x1, y0, y1);
-	}
-	
-    int nnz_save = nnz;
-    nnz = 0;
-    
-    //passage ligne suiv(plaque complete)
-    int ind = 0;
-    //iy ix indice sur grille hors bords  mais position (ix+1)*h
-    for (int iy = 0; iy < ny; iy++) { 
-        for (int ix = 0; ix < nx; ix++) {
-            //exclu interieur et bord du trou
-            if(! in_hole(ix,iy,y0,y1,x0,x1)){
-                //marquer le début de la ligne suivante dans le tableau 'ia'
-                ia[ind] = nnz;
-                
-                b[ind] = 0;
-               
-                if (check_sud(ix,iy,y0,y1,x0,x1,ny)){
-                    a[nnz] = -invh2;
-                    ja[nnz] = indice(ix,iy-1,y0,y1,x0,x1, nx);
-                    nnz++;
-                }
-                else{//besoin de b que pour top level
-					if (m == globVal.m[0]){
-						double x = (ix+ 1)*h;
-						double y = (iy + 1 -1)*h;
-						double bound = computeBound(x, y);
-                    	b[ind] += bound * invh2; 
-					}
-                }
-
-                //replissage de la ligne : voisin ouest 
-                //si pas a droite d'un bord
-                if (check_west(ix,iy,y0,y1,x0,x1,nx)){
-                    a[nnz] = -invh2;
-                    ja[nnz] = ind - 1;
-                    nnz++;
-                }
-                else{
-					if (m == globVal.m[0]){
-						double x = (ix + 1 - 1)*h;
-						double y = (iy + 1)*h;
-						double bound = computeBound( x, y);
-                    	b[ind] += bound * invh2;
-					}
-                }
-
-                // replissage de la ligne : élém. diagonal
-                a[nnz] = 4.0*invh2;
-                ja[nnz] = ind;
-                
-                nnz++;
-                
-                // replissage de la ligne : voisin est
-                //si pas a gauche d'un bord
-                
-                if ( check_est(ix,iy,y0,y1,x0,x1,nx)){
-                    a[nnz] = -invh2;
-                    ja[nnz] = ind + 1;
-                    nnz++;
-                }
-                else{
-					if (m == globVal.m[0]){
-						double x = (ix + 1 +1)*h;
-						double y = (iy + 1)*h;
-						double bound = computeBound(x, y);	
-						b[ind] += bound * invh2;
-					}
-                }
-
-                // replissage de la ligne : voisin nord
-                //si pas en dessous d'un bord
-                if ( check_nord(ix,iy,y0,y1,x0,x1,ny) ){
-                        a[nnz] = -invh2;
-                        ja[nnz] = indice(ix,iy+1,y0,y1,x0,x1, nx);
-                        nnz++;
-                }
-                else{
-					if (m == globVal.m[0]){
-						double x = (ix + 1)*h;
-						double y = (iy + 1 +1)*h;
-						double bound = computeBound(x, y);
-						b[ind] += bound * invh2;
-					}
-                }
-                // numéro de l'équation
-                ind += 1;
-            }
-        }
-    }
-
-     if (*n != ind){
-        printf(" err nl %d ind %d\n", *n, ind);
-    }
-    else if (nnz != nnz_save){
-        printf(" err nnz %d nnz_save %d\n", nnz, nnz_save);
-    }
-    else {
-        ia[ind] = nnz;
-    }
-
-	return 0;
-}
-
-
-
-void computeParamLevel(int m, double *h, double *invh2, int *x0,
-						int *x1, int *y0, int *y1, int *nx,
-						int *ny, int *n, int *nnz){
-    
-    int perUnit = (m-1)/(globVal.domain[1] - globVal.domain[0]);
-    
-    *x0 = ((globVal.domain[4] - globVal.domain[0]) * perUnit) - 1;
-    *x1 = ((globVal.domain[5] - globVal.domain[0]) * perUnit) - 1;
-    *y0 = ((globVal.domain[6] - globVal.domain[2]) * perUnit) - 1;
-    *y1 = ((globVal.domain[7] - globVal.domain[2]) * perUnit) - 1;
-    *h = (double)1/perUnit;
-    *invh2 = 1.0/((*h)*(*h));
-    *nx = m-2; //par def
-    *ny = ((globVal.domain[3] - globVal.domain[2])*perUnit) -1;
-    getNnz(*nx, perUnit, *x0, *x1, *y0,* y1, n, nnz);
-}
-
-void getNnz(int nx, int perUnit, int x0, int x1, 
-					int y0, int y1, int *n, int *nnz){
-
-    int p = y1 - y0 + 1;
-    int q = x1 - x0 + 1;
-    
-    //1 chaque point donne 5 element
-    int dx = nx; //nb de points a compter
-    int dy = ((globVal.domain[3] - globVal.domain[2]) * perUnit) - 1;
-    
-    //generalise pour trou sur bord exterieur
-    //on rajoute ce qu'on a retiré en trop
-    
-    if ((x0<=0 && y0<=0) || (x0<=0 && y1>=dy) 
-        || (x1>= dx && y0<=0) ||(x1>=dx && y1>=dy)) { // dans 1 coin
-    //les q point de la largeur partage 1 point 
-    //avec les p points de la longeur
-        
-        *nnz = 5*dx*dy - 5*(p-1) * (q-1);
-        *n = (dx * dy) - ((p-1) * (q-1));
-        
-        //2 on retire les points qui depassent sur les bord exterieurs
-        *nnz -= 2*dx + 2*dy;
-    }
-    else if (x0 <= 0 || x1 >= dx){
-        *nnz = 5*dx*dy;
-        *n = (dx * dy) - (p * q);
-        //2 on retire les points qui depassent sur les bord exterieurs
-        *nnz -= 2*dx + 2*dy;
-        //3 pour ceux qui compte mais qui depasse sur le bord du trou
-        *nnz -= 2*p;
-        //4 
-        *nnz -= 2*q;
-        //5 les 5 genere par les points du trou
-        *nnz -= 5*p*q;
-        //revient sur 3 car deja été retiré au 2 
-        //c'est comme si le trou devenait un bord ext
-        *nnz += p;
-        //revient de nouveau sur le 3 car pas besoin de retirer a gauche
-        //car pas de point existant a gauche
-        *nnz += p;
-        //haut et bas à gauche on a 2 points qui font partie du bord
-        //exterieur on revient sur le 4 
-        *nnz += 2; 
-        //revient sur le 5, car on retire des points
-        //qui n'ont jamais ete compté dans 1
-        *n += p; //car retiré a n p points qui ne font pas partie du domaine
-        *nnz += 5*p;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-    }
-    else if (y0 <= 0 || y1 >= dy){
-        
-        *nnz = 5*dx*dy;
-        *n = (dx * dy) - (p * q);
-        //2 on retire les points qui depassent sur les bord exterieurs
-        *nnz -= 2*dx + 2*dy;
-        //3 pour ceux qui compte mais qui depasse sur le bord du trou
-        *nnz -= 2*p;
-        //4 
-        *nnz -= 2*q;
-        //5 les 5 genere par les points du trou
-        *nnz -= 5*p*q;
-        //revient sur 3 car deja été retiré au 2 
-        //c'est comme si le trou devenait un bord ext
-        *nnz += q;
-        //revient de nouveau sur le 4 car pas besoin de retirer a gauche
-        //car pas de point existant a gauche
-        *nnz += q;
-        //haut et bas à gauche on a 2 points qui font partie du bord
-        //exterieur on revient sur le 4 
-        *nnz += 2; 
-        //revient sur le 5, car on retire des points
-        //qui n'ont jamais ete compté dans 1
-        *nnz += 5*q; 
-        *n += q;
-    }
-    else {
-
-        *nnz = 5*dx*dy;
-        *n = (dx * dy) - (p * q);
-        //2 on retire les points qui depassent sur les bord exterieurs
-        *nnz -= 2*dx + 2*dy;
-        //3 pour ceux qui compte mais qui depasse sur le bord du trou
-        *nnz -= 2*p;
-        //4 
-        *nnz -= 2*q;
-        //5 les 5 genere par les points du trou
-        *nnz -= 5*p*q;
-    }
-}
-
-int on_bound(int px, int py, int mx, int my){
-	
-    if (py == 0 || py == (my-1) || px == 0 || px == (mx-1)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-int in_hole(int ix, int iy, int y0, int y1, int x0, int x1){
-	//1 == True
-    if (ix >= x0 && ix <= x1 && iy >= y0 && iy <= y1){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-//h1 et h2 car soit on check de grille a grille ou alors de grille a grille coarse
-int check_nord(int ix, int iy, int y0, int y1, int x0, int x1, int ny){
-    
-	if (iy + 1 < ny && ! in_hole(ix, iy +1, y0,y1,x0,x1)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-int check_sud(int ix, int iy, int y0, int y1, int x0, int x1, int ny){
-    
-	if (iy > 0 && ! in_hole(ix, iy -1, y0,y1,x0,x1)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-int check_west(int ix, int iy, int y0, int y1, int x0, int x1, int nx){
-    
-	if (ix > 0 && ! in_hole(ix - 1, iy, y0,y1,x0,x1)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-int check_est(int ix, int iy, int y0, int y1, int x0, int x1, int nx){
-    
-	if (ix + 1 < nx && ! in_hole(ix+1, iy, y0,y1,x0,x1)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-int check_nw(int ixp, int iyp, int y0p, int y1p, 
-             int x0p, int x1p, int nxp, int nyp){
-    
-	int ixnw = ixp - 1;//ind point nw sur la grille prolong 
-    int iynw = iyp + 1;
-    //pas besoin de check si sur bord droit car pas possible
-    if (ixnw >= 0 && iynw < nyp && ! in_hole(ixnw, iynw, y0p,y1p,x0p,x1p)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-int check_ne(int ixp, int iyp, int y0p, int y1p, 
-             int x0p, int x1p, int nxp, int nyp){
-    
-	int ixne =  ixp + 1;//ind point sw sur la grille prolong 
-    int iyne = iyp + 1;
-    if (ixne < nxp && iyne < nyp && ! in_hole(ixne, iyne, y0p,y1p,x0p,x1p)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-int check_sw(int ixp, int iyp, int y0p, int y1p, 
-             int x0p, int x1p, int nxp, int nyp){
-    //return 1/true lorsque point de la grille prolongé fait partie des variable
-	int ixsw =  ixp - 1;//ind point sw sur la grille prolong 
-    int iysw = iyp - 1;
-    if (ixsw >= 0 && iysw >=0 && ! in_hole(ixsw, iysw, y0p,y1p,x0p,x1p)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-int check_se(int ixp, int iyp, int y0p, int y1p, 
-             int x0p, int x1p, int nxp, int nyp){
-    
-	int ixse =  ixp+1;//ind point nw sur la grille prolong 
-    int iyse = iyp - 1;
-    if (ixse < nxp && iyse >= 0 && ! in_hole(ixse, iyse, y0p,y1p,x0p,x1p)){
-		return 1;
-	}
-	else{
-		return 0;
-	}
-}
-
-int indice(int ix,int iy, int y0, int y1, int x0, int x1, int nx){ 
-    //ix iy -> indice dans matrice u (csr)
-	
-	int ind;
-	int p = y1 - y0 + 1;
-	int q = x1 - x0 + 1;
-    //pour les trous speciaux
-    if (x1 == nx){
-        q -= 1;
-    }
-    if (y0 == -1){
-        p -= 1;
-        y0 = 0; //enleve probleme de retard au debut
-    }
-    if (x0 == -1){
-        q -= 1;
-        x0 = 0; //enleve probleme de retard au debut
-    }
-    
-    if (iy < y0){//pas de retard
-		ind = ix + (iy * nx);
-	}
-    //au niveau du debut du trou a gauche
-	else if (iy == y0 && ix < x0 ){//pas de retard nn plus
-		ind = ix + (iy * nx);
-	}
-	else if ((ix > x1) && (iy >= y0 && iy < y1 )){ // retard en augmentation
-		
-        ind = ix + (iy * nx) - q*(iy - y0 +1) ;
-	}
-	else if ((ix < x0) && (iy >= y0 && iy <= y1 )){ // retard en augmentation
-    // -1 car retard ne change pas qd reste a gauche du
-    // trou et qu'on passe a la ligne sup
-		ind = ix + (iy * nx) - q*(iy -1 - y0 +1) ; 
-	}
-	else {
-		ind = ix + (iy * nx) - q*p; // retard constant
-	}
-	return ind;
-}
-
-
-
-
-
-
-
-
- //TOOLS//
-
-
-int isSymmetric(int* ia, int* ja, double* a, int *n) {
-    for (int i = 0; i < *n; i++) {
-        for (int j = ia[i]; j < ia[i + 1]; j++) {
-            int col = ja[j];
-            int row = i;
-            double value = a[j];
-
-            // Find the corresponding element in the transpose
-            int found = 0;
-            for (int k = ia[col]; k < ia[col + 1]; k++) {
-                if (ja[k] == row) {
-                    if (fabs(a[k] - value) > 1e-10) {
-                        return 0; // Not symmetric
-                    }
-                    found = 1;
-                    break;
-                }
-            }
-            if (!found) {
-                return 0; // Corresponding element not found, not symmetric
-            }
-        }
-    }
-    return 1; // Matrix is symmetric
-}
-
-void printMatrix(int* ia, int* ja, double* a, int *n) {
-    for (int i = 0; i <= *n; i++) {
-        int rowStart = ia[i];
-        int rowEnd = ia[i + 1];
-        int jaIndex = rowStart;
-
-        for (int j = 0; j <= *n; j++) {
-            if (jaIndex < rowEnd && ja[jaIndex] == j) {
-                printf("%.2f\t", a[jaIndex]);
-                jaIndex++;
-            } else {
-                printf("0.00\t");
-            }
-        }
-        printf("\n");
-    }
-}
-
-int addVect(int *n , double *v1, double *v2){
-	for (int i = 0; i < *n; i++){
-		v1[i] += v2[i];
-	}
-	return 0;
-}
-
-double computeBound(double x, double y){
-    //compute the value of a point on the bound of the domain
-	//with a function BOUND defined in the macros
-    return BOUND(x,y);
-}
-
-double computeResNorm(int *n, int *ia, int *ja, double *a, 
-						double *b, double *u,  double *r){
-
-	double rn = 0;
-
-	computeRes(n,ia,ja,a,u,b,r);
-	for (int i = 0; i < *n; i++){
-		rn += r[i] * r[i];
-	}
-	rn = sqrt(rn);
-	return rn*10000000000000000;
-}
-
-int computeRes(int *n, int *ia, int *ja, double *a, 
-			   		double *u, double *b, double *r){
-	
-	//r = b -Au
-	int i = 0;
-	int jai = 0;
-	while (i < *n){
-		r[i] = b[i];
-		int ite = ia[i + 1] - ia[i];
-		int j = 0;
-		while (j < ite){
-			r[i] -= a[jai + j] * u[ja[jai + j]]; 		
-			j += 1;
-		}
-		jai += ite;
-		i += 1;
-	}	
-	//trop gourmant  de faire memoire multMatVectCsr(n, ia, ja, a, u, au);
-	//soustVect(n, b, au, r);
-
-	return 0;
-}
-
-void printVect(void *vect, int size, int type) {
-    int i;
-    printf("\n[");
-    if (type == 0) {  // Assuming type 0 represents int
-        int *intVect = (int *)vect;
-        for (i = 0; i < size; i++) {
-            printf("%d, ", intVect[i]);
-        }
-    } 
-    else if (type == 1) {  // Assuming type 1 represents double
-        double *doubleVect = (double *)vect;
-        for (i = 0; i < size; i++) {
-            printf("%lf, ", doubleVect[i]);
-        }
-    printf("]\n");
-    }
-}
-
-void plot_res(double *r, int level){
-
-    //cree un fichier texte (.dat pour gnuplot) contenant 2 colonnes
-    //avec les coordonnées x et y et une colonnes avec les éléments de u
-    // (bord et trous compris avec u = 0) et lance le script gnuplot pour
-    // plot le resultat (nmp = numero de mode propre)
-
-    double h, invh2;
-    int x0,x1,y0,y1, nx, ny, nnz;
-    int n;
-    computeParamLevel(
-        globVal.m[level], &h,&invh2,&x0,&x1, &y0, &y1, &nx, &ny, &n, &nnz
-    );
-    
-    int mx = nx+2;
-    int my = ny+2;
-
-    //creation du ficher
-    FILE* pointFile = NULL;                        
-    const char* file_name = "coord_stat.dat";
-    // ouverture en mode ecriture
-    pointFile = fopen(file_name,"w+");           
-    
-    if (pointFile != NULL){
-
-        //Calcul des constantes
-        
-        int ind = 0;
-        //indice 00 different que pour prob, ici c'est le coin du domaine
-        for (int py = 0; py < my; py++){ //passage ligne suivante
-            for (int px = 0; px < mx; px++){      //passage colonne suivante
-                
-                //si sur bord ou trou
-                if ( on_bound(px,py,mx,my) || in_hole(px-1,py-1,y0,y1,x0,x1)){
-                    
-                    //fprintf(pointFile, "%.16g %.16g 0\n", px*hl, py*hl);
-                    fprintf(pointFile, "%.16g %.16g NaN\n", px*h, py*h);
-                }
-                else{
-                    fprintf(
-                        pointFile,
-                        "%.16g %.16g %.16g\n",
-                        (px*h),
-                        (py*h),
-                        r[ind]
-                    );
-                    ind += 1;
-                }
-            }
-            fprintf(pointFile, "\n");
-        }
-        //fermeture du ficher
-        fclose(pointFile);
-    }
-
-    //initialise fichier gnuplot
-    //plot le graphique
-
-    FILE *gnuplot = popen("gnuplot -persistent","w");
-    fprintf(gnuplot, "set title 'm = %d level = %d'\n", mx, level);
-    fprintf(gnuplot, "load 'gnuScript_stat.gnu'\n");
-    fclose(gnuplot);
-
-    //supprime coord_stat.dat
-    int _ = system("rm coord_stat.dat");
-}
-
-
-void plotDown(int level, char **fig, int *step){
-    if (fig[level*2][*step - 1] != level + '0'){
-        fig[level*2][*step] = level + '0';
-        *step +=1;
-    }
-    
-    fig[level*2+1][*step] = '\\';
-    *step +=1;
-}
-
-void plotUp(int level, char **fig, int *step){
-
-        //getup 
-        // print / step+1
-        //print level step+1
-        fig[(level-1)*2 + 1][*step] = '/';
-        *step +=1;
-        fig[(level-1)*2][*step] = (level-1) + '0';
-        *step +=1;
-}
-
-void FPart(int level, char **fig, int *step){
-    int initLevel = level;
-    printf("level %d\n", level);
-    while (level < LEVELMAX){
-        level += 1;
-        fig[level*2-1][*step] = '\\';
-        *step +=1;
-        if (fig[level*2][*step - 1] != level + '0'){
-            fig[level*2][*step] = level + '0';
-            *step +=1;
-        }
-        
-    }
-    while (level > initLevel){
-        plotUp(level, fig,step);
-        level -= 1;
-    } 
-}
-
-void simillar(int level, char **fig, int *step){
-
-    if (level < LEVELMAX){
-        plotDown(level, fig, step);
-        /*for (int i = 0; i < (LEVELMAX)*2 +1; i++) {
-            printf("%s\n", fig[i]);
-        }  */ 
-        
-        simillar(level+1, fig, step);
-        if (CYCLEW){
-            simillar(level+1, fig, step);
-        }
-        
-        plotUp(level+1, fig,step); 
-        if (level > 0){
-            if (CYCLEF){
-                FPart(level,fig,step);
-            }
-        }
-    }
-    else{            
-        if (fig[level*2][*step - 1] != level + '0'){
-            fig[level*2][*step] = level + '0';
-            *step +=1;
-        }
-    }
-
-}
-
-void plotCycle(){
-    int numberOfLines = (LEVELMAX)*2 +1; 
-    char **paragraph = malloc(numberOfLines * sizeof(char*)); 
-    int sizemax = 200;
-    for (int i = 0; i < numberOfLines; i++) {
-        paragraph[i] = malloc(sizemax * sizeof(char)); // Allocate memory for each line (100 characters)
-        for (int j = 0; j < sizemax; j++){
-            paragraph[i][j] = ' ';
-        }
-    }
-    
-    int step = 0;
-    simillar(0, paragraph, &step);
-
-    // Print the paragraph
-    printf("\n             MULTIGRID CYCLE \n");
-    printf("Top Level\n");
-    for (int i = 0; i < numberOfLines; i++) {
-        printf("%s\n", paragraph[i]);
-    }
-    printf("Bottom Level\n");
-
-    // Free the allocated memory
-    for (int i = 0; i < numberOfLines; i++) {
-        free(paragraph[i]);
-    }
-    free(paragraph);
-}
-
-
-
-/// GLOBAL VARIABLES ///
-
-void initGlobVal(){
-    int count;
-    extractDomain(DOMAIN, &count, &(globVal.domain));
-    
-    int m = correctM(globVal.domain, M);
-    
-    initMlevels(m, &(globVal.m));
-    
-    initIndex(&(globVal.vectStart), &(globVal.matStart));
-}
-
-void extractDomain(const char* str_domain, int* count, int **domain) {
-	//array with the int describing the domain
-    *domain = (int*)malloc(16 * sizeof(int));
-    *count = 0;
-    //on all the string
-    while (*str_domain) {
-		//check if we start on a number
-        if (*str_domain >= '0' && *str_domain <= '9') {
-			//change all the digits present until another char into 1 number
-			//(1 digit or more)
-            (*domain)[*count] = atoi(str_domain);
-            (*count)++;
-
-            while (*str_domain >= '0' && *str_domain <= '9') {
-                str_domain++;
-            }
-        } else {
-            str_domain++;
-        }
-    }
-}
-
-int correctM(int *domain, int m){
-    //correct m in order to obtain discretisation 
-    //matching with the surface and for multigrid =>
-    //domain ex : if "[0, 6] × [0, 10]  [2, 4] × [2, 5]" -> domain = [0,6,0,10,2,4,2,5]
-    // L = smallest number of cases possible
-    int L = domain[1] - domain[0];
-    while (m > L+1){
-        L *= 2;
-    }
-
-    return L + 1;
-}
-
-int initMlevels(int m, int **mLevels){
-    
-    *mLevels = (int *)malloc((LEVELMAX+1)*sizeof(int));
-    (*mLevels)[0] = m;
-    printf("\nmi = %d,", m);
-    for (int l = 1; l <= LEVELMAX; l+=1){
-        (*mLevels)[l] = m/(1 << l) + 1;
-        printf(" %d,", (*mLevels)[l]);
-    }
-    printf("\n");
-    return 0;
-}
-
-int initIndex( int **vectStart, int **matStart){
-    
-    //contient les debuts de chaque vecteur (pour tt les n) et la fin 
-    //du vecteur global donc nb de levels = levelmax +1 , et encore +1 
-    //pour la fin de vecteur un peu comme dans ia
-	*vectStart = (int*)malloc((LEVELMAX+1 + 1) * sizeof(int));
-    *matStart = (int*)malloc((LEVELMAX+1 + 1) * sizeof(int));
-    
-    (*vectStart)[0] = 0;
-    (*matStart)[0] = 0;
-    int nnzTot = 0;
-    int nTot = 0;
-    for (int l = 0; l <= LEVELMAX; l++){
-        double h, invh2;
-        int x0,x1,y0,y1, nx, ny, nnz;
-        int n;	
-		computeParamLevel(globVal.m[l], &h, &invh2, &x0,
-						&x1, &y0, &y1, &nx,
-						&ny, &n, &nnz);
-        
-        nnzTot += nnz;
-        nTot += n;
-        (*vectStart)[l+1] = nTot;
-        (*matStart)[l+1] = nnzTot;
-	}
-    return 0;
-}
-
-void freeGlobVal(){
-    free(globVal.domain);
-    free(globVal.vectStart);
-    free(globVal.matStart);
-    free(globVal.m);
-}
-
 
 
 
@@ -2247,26 +1234,7 @@ int multCsrSubvector(int *n, int *ia, int *ja, double *a,
 	return 0;
 }
 
-int multCsrVector(int *n, int *ia, int *ja, 
-                 double *a, double *Ax, double *x){
-	//do v2 = A*v1 
-	
-	int i = 0;
-	int jai = 0;
-	while (i < *n){
-		int ite = ia[i + 1] - ia[i];
-		int j = 0;
-        Ax[i] = 0;
-		while (j < ite){
-			Ax[i] += a[jai + j] * x[ja[jai + j]]; 		
-			j += 1;
-		}
-		jai += ite;
-		i += 1;
-	}
 
-	return 0;
-}
 
 int rayleighQuot(int *n, double *res, int *ia, int *ja, 
                  double *a, double *Ax, double *x){
@@ -2287,26 +1255,8 @@ int rayleighQuot(int *n, double *res, int *ia, int *ja,
     return 0;
 }
 
-int copy( int *n, double *rCGl, double *bCG){
-    for (int i = 0; i < *n; i++)
-    {
-        bCG[i] = rCGl[i];
-    }
-    
-    return 0;
-}
 
-int scalProd(int *n, double *v1, double *v2, double *res){
 
-    *res = 0;
-    int i = 0;
-    while (i < *n){
-        *res += v1[i] * v2[i];
-        i += 1;
-    }
-
-    return 0;
-}
 
 int computeVectNorm2(int *n, double *norm, double *v){
 
@@ -2343,33 +1293,7 @@ int vectScalDivide(int *n, double *v, double *beta){
     return 0;
 }
 
-int subVectProd(int *n, double *alpha, double *v2, double *v1){
 
-    int i = 0;
-    while (i < *n){
-        v2[i] -= (*alpha) * v1[i];
-        i += 1;
-    }
-}
-
-int addVectProd(int *n, double *alpha, double *v2, double *v1){
-
-    int i = 0;
-    while (i < *n){
-        v2[i] += (*alpha) * v1[i];
-        i += 1;
-    }
-}
-
-int dSum(int *n, double *beta, double *d, double *z){
-
-    int i = 0;
-    while (i < *n){
-        d[i] = z[i] + (*beta) * d[i];
-        i += 1;
-    }
-    return 0;
-}
 
 int computeMu(double *alpha, double *beta, int *n, double *mu) {
     double max_alpha = fabs(alpha[0]);

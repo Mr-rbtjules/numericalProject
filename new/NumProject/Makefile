@@ -17,14 +17,14 @@ clean:
 	rm *.o 
 	rm main
 
-main: main.c umfpack.o method.o time.o cg.o
+main: main.c umfpack.o method.o time.o globVal.o plot.o tools.o prob.o cg.o
 	cc $(COPT) $^ -o $@ $(LIB)
 
 umfpack.o: umfpack.c
 	cc $(COPT) -c $< -o $@ -ISuiteSparse/UMFPACK/Include \
   -ISuiteSparse/SuiteSparse_config  -ISuiteSparse/AMD/Include
 
-%.o: %.c
+%.o: %.c proto.h
 	cc $(COPT) -c $< -o $@
 
 
