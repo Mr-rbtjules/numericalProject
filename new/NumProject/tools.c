@@ -116,6 +116,7 @@ int subVectProd(int *n, double *alpha, double *v2, double *v1){
         v2[i] -= (*alpha) * v1[i];
         i += 1;
     }
+    return 0;
 }
 
 int addVectProd(int *n, double *alpha, double *v2, double *v1){
@@ -125,6 +126,7 @@ int addVectProd(int *n, double *alpha, double *v2, double *v1){
         v2[i] += (*alpha) * v1[i];
         i += 1;
     }
+    return 0;
 }
 
 int dSum(int *n, double *beta, double *d, double *z){

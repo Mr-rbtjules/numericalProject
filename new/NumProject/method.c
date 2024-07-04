@@ -907,7 +907,7 @@ int symGS(int iter, double tol, int *n, int *ia, int *ja, double *a,
       		backwardGS( 1, n, ia, ja, a, b, u, r, d);
 			i++;
 			if (tol){//tol > computeNorm(n,r)){
-				i == iter;
+				i = iter;
 			}
 		}
 	}
@@ -1067,6 +1067,7 @@ int computeExtremeEv(int *n, int lanczosIter, int *ia, int *ja,
 
     free(evect);
     free(Ax);
+    return 0;
 }
 
 
@@ -1074,7 +1075,7 @@ int computeExtremeEv(int *n, int lanczosIter, int *ia, int *ja,
 int lanczosAlgo(int iter, int *n, int *ia, int *ja, 
                  double *a, double **alpha, double **beta){
 
-    int tol = 1e-12;
+    double tol = 1e-12;
 
     double *v_current = malloc(*n * sizeof(double));
     double *v_previous = calloc(*n, sizeof(double)); // Initializes to zero
@@ -1110,12 +1111,14 @@ int lanczosAlgo(int iter, int *n, int *ia, int *ja,
         v_previous = v_current;
         v_current = v_next;
         v_next = temp;
+        return 0;
     }
 
 
     free(v_current);
     free(v_next);
     free(v_previous);
+    return 0;
 }
 
 //allocateoutside ?
@@ -1155,7 +1158,7 @@ int invIter(double *alpha, double *beta, double *v,
     
 
     free(y);
-
+    return 0;
 }
 
 
@@ -1309,6 +1312,7 @@ int computeMu(double *alpha, double *beta, int *n, double *mu) {
     }
 
     *mu =  max_alpha + max_beta;
+    return 0;
 }
 
 //inverse iteration -> smallest
