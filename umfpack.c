@@ -1,6 +1,6 @@
 #include <stdio.h>
 /* #include <stdlib.h>*/
-#include "umfpack.h"
+#include <suitesparse/umfpack.h>
 
 int solve_umfpack(int n, int *ia, int *ja, double *a, 
                   double *b, double *x)

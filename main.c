@@ -1,54 +1,42 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <string.h>
 #include "proto.h"
+#include <float.h>
 
 
-#define test "[0, 6] × [0, 10]  [0, 2] × [3, 4]"
-/* Declaratiopn des prototypes */
 
+ 
+int main() {
+    
+    
+    int ms[9] = {1537, 769, 385, 193, 97, 49, 25, 13, 7};
+    int iter = 15;
+    int m = ms[3];
+    double *res = malloc(iter * sizeof(double));
+      
+    //conjugateGradientCSR();
+    mg_method(m, iter, 5, 4, 0, 0, res); 
+    
+    //CGmethod(iter, m, 7, res);
+    plotIter(res, iter, m);
 
-/* Fonction main */
+    free(res);
+    
+    
 
-int main(int argc, char *argv[])
-{
-   int m = 300; //  >= 13 et impaire pour la restriction et conserver distance par rapport au bords
-   mg_method(1000, 6, m);
-   //pblm des que levelMax > 1 pblm de resolution at coarse level
-   //qu'importe le m si on multiplie ou divise par 2 le res de Ac=r tjrs nulle r-Ac
-   //piste pblm avec b ou r ou la ou on stoque c
-   //diff entre 1 et 2 ?
-   int level = 0; //level 1 min 26 , 2 52,3 104, level max 6-7
+    
+/*
 
-   int n;
-   int *ia = NULL;
-   int *ja = NULL; 
-   double *a = NULL;
-   double *b = NULL;
-   double *x = NULL;
-   double *r = NULL;
-   double t1, t2;
+probleme potentiel : 
+-double x = (ix+ 1)*h;
+double y = (iy + 1 -1)*h;
+double bound = computeBound(x, y);
 
-   allocProb(m, &n, &ia, &ja, &a, &b, &x, &r);
-
-   if (probMg(m, level, &n, ia, ja, a, b))
-      return 1;
-   printf("\nPROBLEM: ");
-   printf("m = %5d   n = %8d  nnz = %9d\n", m, n, ia[n] );
-  
-
-   t1 = mytimer();
-   if( solve_umfpack(n, ia, ja, a, b, x) )
-      return 1;
-   t2 = mytimer();
-   printf("\nTemps de solution umpfpack(CPU): %5.1f sec\n",t2-t1);
-
-   printf("\n res = %lf\n",computeResNorm(n, ia, ja, a, b, x, r));
-
-   free(ia); free(ja); free(a); free(b); free(x);
+-enleve -invh2 mais alors 
+*/
 
 
 
    return 0;
 }
-
